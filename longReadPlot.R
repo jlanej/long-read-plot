@@ -12,7 +12,7 @@ option_list = list(
   make_option(
     c("-o", "--output"),
     type = "character",
-    default = "./examples/NA19240_2020_merged.ccs.hg38.aligned.chr17_10958130_11017414.png",
+    default = "./examples/output/NA19240_2020_merged.ccs.hg38.aligned.chr17_10958130_11017414.png",
     help = "output image file",
     metavar = "file"
   ),
@@ -31,10 +31,13 @@ bamFile = opt$bam
 # parse the region to plot to Granges
 region = strsplit(opt$region, ":|-")[[1]]
 bamAll = parseAlignments(bamFile, region)
+# create the output directory if it doesn't exist
+dir.create(dirname(opt$output), showWarnings = FALSE)
+
 # write bamAll to a file named opt$output with a txt extension and the output extension removed
 write.table(
-  apply(bamAll, 2, as.character),
-  file = paste0(tools::file_path_sans_ext(opt$output), ".txt"),
+  bamAll,
+  file = paste0(tools::file_path_sans_ext(opt$output), ".tsv"),
   sep = "\t",
   row.names = FALSE,
   quote = FALSE
