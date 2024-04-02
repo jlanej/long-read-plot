@@ -30,4 +30,12 @@ opt = parse_args(opt_parser)
 bamFile = opt$bam
 # parse the region to plot to Granges
 region = strsplit(opt$region, ":|-")[[1]]
-bamAll = loadAndParseAlignments(bamFile, region)
+bamAll = parseAlignments(bamFile, region)
+# write bamAll to a file named opt$output with a txt extension and the output extension removed
+write.table(
+  apply(bamAll, 2, as.character),
+  file = paste0(tools::file_path_sans_ext(opt$output), ".txt"),
+  sep = "\t",
+  row.names = FALSE,
+  quote = FALSE
+)
