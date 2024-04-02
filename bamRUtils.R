@@ -1,6 +1,7 @@
 require(Rsamtools)
 
 
+
 .unlist <- function (x)
 {
   ## do.call(c, ...) coerces factor to integer, which is undesired
