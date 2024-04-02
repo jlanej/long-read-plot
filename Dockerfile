@@ -22,6 +22,8 @@ RUN R -e "install.packages('optparse',dependencies=TRUE, repos='http://cran.rstu
 RUN R -e "install.packages('BiocManager',dependencies=TRUE, repos='http://cran.rstudio.com/')"
 RUN R -e "BiocManager::install('Biostrings')"
 RUN R -e "BiocManager::install('Rsamtools')"
+RUN R -e "BiocManager::install('GenomicAlignments')"
+
 
 ADD https://worldtimeapi.org/api/ip time.tmp
 
