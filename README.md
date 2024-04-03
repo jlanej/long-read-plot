@@ -1,7 +1,7 @@
 Long read plots
 ================
 
-## Long read plots
+## Description
 
 Plot a represenation of long read alignments in a region of interest
 
@@ -27,8 +27,10 @@ Plot a represenation of long read alignments in a region of interest
 
 1.  Clone the repository and run the longReadPlot.R script directly via
     Rscript
+    - Need to have R and the required packages installed
 2.  Use the container image to run the script via docker or singularity
     <https://github.com/jlanej/long-read-plot/pkgs/container/long-read-plot>
+    - Just need to have docker or singularity installed
 
 ## Example usage via singularity
 
@@ -43,7 +45,7 @@ following command:
     #!/bin/bash
 
     bam=$HOME/git/long-read-plot/examples/NA19240_2020_merged.ccs.hg38.aligned.chr17_10958130_11017414.bam
-    output=/scratch.global/lanej/1000G/long_read/plots/NA19240_output/NA19240_2020_merged.ccs.hg38.aligned.chr17_10958130_11017414.png
+    output=$HOME/tmp/NA19240_output/NA19240_2020_merged.ccs.hg38.aligned.chr17_10958130_11017414.png
     region=chr17:10958130-11017414
 
     singularity run --containall \

@@ -8,7 +8,7 @@ knitr::opts_chunk$set(echo = FALSE)
 source("longReadPlot.R")
 ```
 
-## Long read plots
+## Description
 
 Plot a represenation of long read alignments in a region of interest
 
@@ -40,7 +40,9 @@ processed$gParticle + theme(text = element_text(size = 20))
 ## Installation options
 
 1. Clone the repository and run the longReadPlot.R  script directly via Rscript
+    - Need to have R and the required packages installed
 2. Use the container image to run the script via docker or singularity https://github.com/jlanej/long-read-plot/pkgs/container/long-read-plot 
+    - Just need to have docker or singularity installed
 
 
 ## Example usage via singularity
