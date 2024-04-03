@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# bam is packaged within image
+#This example bam is packaged within image
 bam=/long-read-plot/examples/NA19240_2020_merged.ccs.hg38.aligned.chr17_10958130_11017414.bam
 region=chr17:10958130-11017414
 outputDir=$HOME/tmp/NA19240_output/

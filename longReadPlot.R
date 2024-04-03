@@ -63,3 +63,5 @@ if (opt$debug) {
   )
   close(g)
 }
+
+warnings()
