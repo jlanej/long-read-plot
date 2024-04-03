@@ -1,11 +1,6 @@
-# for some reason crayon seems to install just fine in the docker image and can be loaded during image creation.
-# But after the image is created, it can't be loaded. So, this installs it in case it's not already installed.
-if (!require(crayon))
-  install.packages("crayon")
-library(crayon)
-require(Rsamtools)
 require(GenomicAlignments)
-
+require(Rsamtools)
+require(ggplot2)
 
 .unlist <- function (x)
 {
@@ -41,22 +36,53 @@ parseAlignments <- function(bamFile, region) {
   bamAll = loadBam(bamFile, param = ScanBamParam(what = scanBamWhat(), which = which))
   bamAll$flag = as.character(bamAll$flag)
   bamAll$sequenceLength = nchar(bamAll$seq)
-  bamAll$cigarWidthAlongReferenceSpace = cigarWidthAlongReferenceSpace(bamAll$cigar)
-  bamAll$cigarWidthAlongQuerySpace = cigarWidthAlongQuerySpace(bamAll$cigar)
+  bamAll$cigarWidthAlongReferenceSpaceAfterSoftClipping = cigarWidthAlongReferenceSpace(bamAll$cigar)
+  bamAll$cigarWidthAlongQuerySpaceAfterSoftClipping = cigarWidthAlongQuerySpace(bamAll$cigar, after.soft.clipping = TRUE)
+  addClipCounts(df = bamAll)
   return(bamAll)
 }
 
-# bamAll$end = bamAll$pos + bamAll$swidth
-# bamAll$proportionOfReadAlignedToRef = cigarWidthAlongQuerySpace(bamAll$cigar, after.soft.clipping = TRUE) / bamAll$sequenceLength
-# bamAll$impliedEnd = bamAll$pos + bamAll$sequenceLength
-# bamAll$diff = bamAll$impliedEnd - bamAll$end
-# bamAll$op = explodeCigarOps(bamAll$cigar)
-# bamAll$len = explodeCigarOpLengths(bamAll$cigar)
-# bamAll$firstOp = sapply(bamAll$op, function(x)
-#   x[1])
-# bamAll$lastOp = sapply(bamAll$op, function(x)
-#   x[length(x)])
-# bamAll$firstLen = sapply(bamAll$len, function(x)
-#   x[1])
-# bamAll$lastLen = sapply(bamAll$len, function(x)
-#   x[length(x)])
+addClipCounts <- function(df) {
+  df$LeftClipCount = 0
+  df$RightClipCount = 0
+  for (i in 1:nrow(df)) {
+    sLens = explodeCigarOpLengths(df[i, ]$cigar)
+    sOps = explodeCigarOps(df[i, ]$cigar)
+    if (sOps[[1]][[1]] == "S" | sOps[[1]][[1]] == "H") {
+      df[i, ]$LeftClipCount = sLens[[1]][[1]]
+    }
+    if (sOps[[1]][[length(sOps[[1]])]] == "S" ||
+        sOps[[1]][[length(sOps[[1]])]] == "H") {
+      df[i, ]$RightClipCount = sLens[[1]][[length(sOps[[1]])]]
+    }
+  }
+}
+
+getAdjustedDF <- function(df) {
+  unique_qnames = unique(df$qname)
+  adjustedDF = data.frame()
+  for (qname in unique_qnames) {
+    dfSubset = df[df$qname == qname, ]
+    if (nrow(dfSubset) > 1) {
+      minSoftClip = min(dfSubset$LeftSoftClipCount)
+      minimumPosition = min(dfSubset[which(dfSubset$LeftSoftClipCount == minSoftClip),]$pos)
+      
+      for (i in 1:nrow(dfSubset)) {
+        sLens = explodeCigarOpLengths(dfSubset[i,]$cigar)
+        sOps = explodeCigarOps(dfSubset[i,]$cigar)
+        hasLeftSoft = FALSE
+        if (sOps[[1]][[1]] == "S" || sOps[[1]][[1]] == "H") {
+          dfSubset[i,]$adjustedPos = minimumPosition + sLens[[1]][[1]]
+          dfSubset[i,]$adjustedPosEnd = dfSubset[i,]$adjustedPos + dfSubset[i,]$swidth
+          hasLeftSoft = TRUE
+        }
+        if (!hasLeftSoft) {
+          dfSubset[i,]$adjustedPos = dfSubset[i,]$pos
+          dfSubset[i,]$adjustedPosEnd = dfSubset[i,]$end
+        }
+        adjustedDF = rbind(adjustedDF, dfSubset[i,])
+      }
+    }
+  }
+  return(adjustedDF)
+}
