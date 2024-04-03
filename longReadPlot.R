@@ -13,7 +13,7 @@ option_list = list(
   make_option(
     c("-o", "--output"),
     type = "character",
-    default = "./examples/output/NA19240_2020_merged.ccs.hg38.aligned.chr17_10958130_11017414.png",
+    default = "./examples/output/NA19240_2020_merged.ccs.hg38.aligned.chr17_10958130_11017414.pdf",
     help = "output image file",
     metavar = "file"
   ),
@@ -38,20 +38,15 @@ opt = parse_args(opt_parser)
 # create the output directory if it doesn't exist
 dir.create(dirname(opt$output), showWarnings = FALSE)
 
-bamFile = opt$bam
-# parse the region to plot to Granges
-region = strsplit(opt$region, ":|-")[[1]]
-# load the region from the bam file
-bamAll = parseAlignments(bamFile, region)
-# get the adjusted data frame
-adjustedDF = getAdjustedDF(bamAll)
+processed = processRegion(opt$bam, opt$region)
+savePlot(processed$g, opt$output)
 
 if (opt$debug) {
   # write bamAll to a file named opt$output with a txt extension and the output extension removed
   g = gzfile(paste0(tools::file_path_sans_ext(opt$output), ".tsv.gz"),
              "w")
   write.table(
-    bamAll,
+    processed$bamAll,
     file = g,
     sep = "\t",
     row.names = FALSE,
@@ -63,7 +58,7 @@ if (opt$debug) {
   g = gzfile(paste0(tools::file_path_sans_ext(opt$output), ".adjusted.tsv.gz"),
              "w")
   write.table(
-    adjustedDF,
+    processed$adjustedDF,
     file = g,
     sep = "\t",
     row.names = FALSE,

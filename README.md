@@ -1,2 +1,54 @@
-# long-read-plot
+Long read plots
+================
 
+## Long read plots
+
+Plot a represenation of long read alignments in a region of interest
+
+![](README_files/figure-gfm/example-1.png)<!-- -->
+
+- These plots attempt to visualize a mapping from “read-space” (the
+  actual piece of DNA sequenced) to “reference-space” (where the
+  portions of the read align to the reference genome).
+
+## Usage:
+
+`Rscript longReadPlot.R --bam $bam --region $region --output $output`
+
+- `--bam` : bam file to plot
+- `--region` : region to plot in ucsc format
+  e.g. chr17:10958130-11017414
+- `--output` : output image file name, the extension determines the
+  output format (png, pdf, etc.)
+- `--debug` : debug mode, if set to debug mode a tsv file of the
+  alignments will be created
+
+## Installation options
+
+1.  Clone the repository and run the longReadPlot.R script directly via
+    Rscript
+2.  Use the container image to run the script via docker or singularity
+    <https://github.com/jlanej/long-read-plot/pkgs/container/long-read-plot>
+
+## Example usage via singularity
+
+A parameterized example of how to use the plotting script can be found
+in the example directory here
+<https://github.com/jlanej/long-read-plot/blob/main/examples/example.NA19240.sh>.
+This script uses singularity to run the plotting script in a container.
+
+The example image above in this readme can be created by running the
+following command:
+
+    #!/bin/bash
+
+    bam=$HOME/git/long-read-plot/examples/NA19240_2020_merged.ccs.hg38.aligned.chr17_10958130_11017414.bam
+    output=/scratch.global/lanej/1000G/long_read/plots/NA19240_output/NA19240_2020_merged.ccs.hg38.aligned.chr17_10958130_11017414.png
+    region=chr17:10958130-11017414
+
+    singularity run --containall \
+    --pwd "/long-read-plot/" \
+    --bind "$HOME/git/long-read-plot/examples" \
+    --bind "/scratch.global/lanej/1000G/long_read/plots/NA19240_output" \
+    "docker://ghcr.io/jlanej/long-read-plot:main" \
+    Rscript longReadPlot.R --bam $bam --output $output --region $region --debug
