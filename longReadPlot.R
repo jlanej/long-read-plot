@@ -35,12 +35,16 @@ option_list = list(
 
 opt_parser = OptionParser(option_list = option_list)
 opt = parse_args(opt_parser)
+# create the output directory if it doesn't exist
+dir.create(dirname(opt$output), showWarnings = FALSE)
+
 bamFile = opt$bam
 # parse the region to plot to Granges
 region = strsplit(opt$region, ":|-")[[1]]
+# load the region from the bam file
 bamAll = parseAlignments(bamFile, region)
-# create the output directory if it doesn't exist
-dir.create(dirname(opt$output), showWarnings = FALSE)
+# get the adjusted data frame
+adjustedDF = getAdjustedDF(bamAll)
 
 if (opt$debug) {
   # write bamAll to a file named opt$output with a txt extension and the output extension removed
@@ -54,5 +58,16 @@ if (opt$debug) {
     quote = FALSE
   )
   close(g)
+  
+  # write adjustedDF to a file named opt$output with a txt extension and the output extension removed
+  g = gzfile(paste0(tools::file_path_sans_ext(opt$output), ".adjusted.tsv.gz"),
+             "w")
+  write.table(
+    adjustedDF,
+    file = g,
+    sep = "\t",
+    row.names = FALSE,
+    quote = FALSE
+  )
+  close(g)
 }
-
