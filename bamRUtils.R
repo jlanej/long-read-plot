@@ -52,14 +52,14 @@ addClipCounts <- function(df) {
   df$LeftClipCount = 0
   df$RightClipCount = 0
   for (i in 1:nrow(df)) {
-    sLens = explodeCigarOpLengths(df[i,]$cigar)
-    sOps = explodeCigarOps(df[i,]$cigar)
+    sLens = explodeCigarOpLengths(df[i, ]$cigar)
+    sOps = explodeCigarOps(df[i, ]$cigar)
     if (sOps[[1]][[1]] == "S" | sOps[[1]][[1]] == "H") {
-      df[i,]$LeftClipCount = sLens[[1]][[1]]
+      df[i, ]$LeftClipCount = sLens[[1]][[1]]
     }
     if (sOps[[1]][[length(sOps[[1]])]] == "S" ||
         sOps[[1]][[length(sOps[[1]])]] == "H") {
-      df[i,]$RightClipCount = sLens[[1]][[length(sOps[[1]])]]
+      df[i, ]$RightClipCount = sLens[[1]][[length(sOps[[1]])]]
     }
   }
   return(df)
@@ -74,29 +74,29 @@ getAdjustedDF <- function(df) {
   
   
   for (qname in unique_qnames) {
-    dfSubset = df[df$qname == qname,]
+    dfSubset = df[df$qname == qname, ]
     if (nrow(dfSubset) > 1) {
       minSoftClip = min(dfSubset$LeftClipCount)
-      minimumPosition = min(dfSubset[which(dfSubset$LeftClipCount == minSoftClip), ]$pos)
+      minimumPosition = min(dfSubset[which(dfSubset$LeftClipCount == minSoftClip),]$pos)
       
       for (i in 1:nrow(dfSubset)) {
-        sLens = explodeCigarOpLengths(dfSubset[i, ]$cigar)
-        sOps = explodeCigarOps(dfSubset[i, ]$cigar)
+        sLens = explodeCigarOpLengths(dfSubset[i,]$cigar)
+        sOps = explodeCigarOps(dfSubset[i,]$cigar)
         hasLeftSoft = FALSE
         if (sOps[[1]][[1]] == "S" || sOps[[1]][[1]] == "H") {
-          dfSubset[i, ]$adjustedPos = minimumPosition + sLens[[1]][[1]]
-          dfSubset[i, ]$adjustedPosEnd = dfSubset[i, ]$adjustedPos + dfSubset[i, ]$cigarWidthAlongReferenceSpace
+          dfSubset[i,]$adjustedPos = minimumPosition + sLens[[1]][[1]]
+          dfSubset[i,]$adjustedPosEnd = dfSubset[i,]$adjustedPos + dfSubset[i,]$cigarWidthAlongReferenceSpace
           hasLeftSoft = TRUE
         }
         if (!hasLeftSoft) {
-          dfSubset[i, ]$adjustedPos = dfSubset[i, ]$pos
-          dfSubset[i, ]$adjustedPosEnd = dfSubset[i, ]$end
+          dfSubset[i,]$adjustedPos = dfSubset[i,]$pos
+          dfSubset[i,]$adjustedPosEnd = dfSubset[i,]$end
         }
-        adjustedDF = rbind(adjustedDF, dfSubset[i, ])
+        adjustedDF = rbind(adjustedDF, dfSubset[i,])
       }
     }
   }
-  adjustedDF = adjustedDF[order(adjustedDF$LeftClipCount),]
+  adjustedDF = adjustedDF[order(adjustedDF$LeftClipCount), ]
   adjustedDF$uniqueQname = make_unique(adjustedDF$qname, sep = "_aligment_#")
   adjustedDF$uniqueQname = ifelse(
     grepl("_aligment", adjustedDF$uniqueQname),
@@ -160,7 +160,8 @@ getParticlePlot <-
            rearrangedLines,
            adjustedDF,
            alphaRibbons = 0.05,
-           curvature = 0.75,xlab = "Position") {
+           curvature = 0.75,
+           xlab = "Position") {
     g = ggplot(rearranged)
     g = g + geom_segment(
       data = rearrangedLines,
@@ -173,7 +174,7 @@ getParticlePlot <-
         linetype = line_type
       ),
       alpha = 1,
-      size = 1
+      linewidth = 1
     ) + geom_polygon(aes(
       x = pos,
       y = type,
@@ -196,7 +197,7 @@ getParticlePlot <-
         color = alignment_number
       ),
       alpha = 1,
-      size = 1,
+      linewidth = 1,
       curvature = -1 * curvature,
       arrow = arrow()
     ) + geom_curve(
@@ -209,7 +210,7 @@ getParticlePlot <-
         color = alignment_number
       ),
       alpha = 1,
-      size = 1,
+      linewidth = 1,
       curvature = curvature,
       arrow = arrow()
     )
@@ -226,7 +227,7 @@ processRegion <-
            minAlignments = 2) {
     region = strsplit(ucscRegion, ":|-")[[1]]
     bamAll = parseAlignments(bamFile, region)
-    bamAll = bamAll[which(bamAll$numAlignmentsForThisReadID >= minAlignments),]
+    bamAll = bamAll[which(bamAll$numAlignmentsForThisReadID >= minAlignments), ]
     adjusted = getAdjustedDF(df = bamAll)
     adjustedDF = adjusted$adjustedDF
     bamAll = adjusted$df
