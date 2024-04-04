@@ -1,5 +1,6 @@
 FROM ubuntu:latest
-
+ARG DEBIAN_FRONTEND=noninteractive
+ENV TZ=Etc/UTC
 RUN apt-get update && apt-get -y upgrade && \
 apt-get install -y libcurl4-openssl-dev git r-base r-base-dev && \
 apt-get clean && apt-get purge && \
