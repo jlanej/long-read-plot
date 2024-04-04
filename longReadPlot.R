@@ -1,18 +1,25 @@
 library(optparse)
-source("bamRUtils.R")
+library(this.path)
+source(paste0(this.dir(), "/bamRUtils.R"))
 
 option_list = list(
   make_option(
     c("-i", "--bam"),
     type = "character",
-    default = "./examples/NA19240_2020_merged.ccs.hg38.aligned.chr17_10958130_11017414.bam",
+    default = paste0(
+      this.dir(),
+      "/examples/NA19240_2020_merged.ccs.hg38.aligned.chr17_10958130_11017414.bam"
+    ),
     help = "bam file to plot",
     metavar = "file"
   ),
   make_option(
     c("-o", "--output"),
     type = "character",
-    default = "./examples/output/NA19240_2020_merged.ccs.hg38.aligned.chr17_10958130_11017414.png",
+    default = paste0(
+      this.dir(),
+      "/examples/output/NA19240_2020_merged.ccs.hg38.aligned.chr17_10958130_11017414.png"
+    ),
     help = "output image file",
     metavar = "file"
   ),

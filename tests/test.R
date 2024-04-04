@@ -1,0 +1,5 @@
+library("here") 
+library(this.path)
+print(here())
+print(getwd( ))
+print(this.dir())

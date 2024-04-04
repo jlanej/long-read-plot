@@ -219,7 +219,7 @@ getParticlePlot <-
     g = g + xlab(xlab)
     # remove y axis label
     g = g + theme(axis.title.y = element_blank())
-    g=g+scale_linetype_manual(values=c("solid","dotted","solid"))
+    g=g+scale_linetype_manual(values=c("twodash","dotted","solid"))
     return(g)
   }
 
