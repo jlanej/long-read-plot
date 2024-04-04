@@ -1,7 +1,7 @@
 FROM r-base:4.3.3
 
 RUN apt-get update && apt-get -y upgrade && \
-apt-get install -y git && \
+apt-get install -y libcurl4-openssl-dev git && \
 apt-get clean && apt-get purge && \
 rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
