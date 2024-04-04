@@ -1,7 +1,7 @@
 FROM ubuntu:latest
 
 RUN apt-get update && apt-get -y upgrade && \
-apt-get install -y libcurl4-dev git && \
+apt-get install -y libcurl4-openssl-dev git r-base r-base-dev && \
 apt-get clean && apt-get purge && \
 rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
