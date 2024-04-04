@@ -26,7 +26,7 @@ option_list = list(
   make_option(
     c("-d", "--debug"),
     action = "store_true",
-    default = FALSE,
+    default = TRUE,
     help = "debug mode, creates a tsv file of the alignments",
     dest = "debug"
   )

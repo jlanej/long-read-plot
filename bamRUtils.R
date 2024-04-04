@@ -104,6 +104,7 @@ getAdjustedDF <- function(df) {
     paste0(adjustedDF$uniqueQname, "_aligment_#1")
   )
   adjustedDF$alignment_number = as.factor(gsub(".*_", "", adjustedDF$uniqueQname))
+  adjustedDF$line_type="alignment-start-to-end"
   return(list(adjustedDF = adjustedDF, df = df))
 }
 
@@ -194,7 +195,7 @@ getParticlePlot <-
         y =  "read-space",
         xend = adjustedPosEnd,
         yend = "read-space",
-        color = alignment_number
+        color = alignment_number,linetype = line_type
       ),
       alpha = 1,
       linewidth = 1,
@@ -207,7 +208,7 @@ getParticlePlot <-
         y =  "reference-space",
         xend = end,
         yend = "reference-space",
-        color = alignment_number
+        color = alignment_number,linetype = line_type
       ),
       alpha = 1,
       linewidth = 1,
@@ -218,6 +219,7 @@ getParticlePlot <-
     g = g + xlab(xlab)
     # remove y axis label
     g = g + theme(axis.title.y = element_blank())
+    g=g+scale_linetype_manual(values=c("solid","dotted","solid"))
     return(g)
   }
 
