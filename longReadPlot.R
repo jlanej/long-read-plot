@@ -48,7 +48,9 @@ processed = processRegion(opt$bam, opt$region)
 savePlot(processed$g, opt$output)
 
 if (opt$debug) {
-  g = gzfile(paste0(tools::file_path_sans_ext(opt$output), ".tsv.gz"),
+  outgzfile = paste0(tools::file_path_sans_ext(opt$output), ".tsv.gz")
+  print(paste0("Writing to", outgzfile))
+  g = gzfile(outgzfile,
              "w")
   write.table(
     processed$bamAll,
@@ -59,7 +61,9 @@ if (opt$debug) {
   )
   close(g)
   
-  g = gzfile(paste0(tools::file_path_sans_ext(opt$output), ".adjusted.tsv.gz"),
+  outgzfile = paste0(tools::file_path_sans_ext(opt$output), ".adjusted.tsv.gz")
+  print(paste0("Writing to", outgzfile))
+  g = gzfile(outgzfile,
              "w")
   write.table(
     processed$adjustedDF,
