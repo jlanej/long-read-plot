@@ -14,7 +14,7 @@ outputDir=$HOME/tmp/NA19240_output/
 outputRoot=$outputDir/NA19240_2020_merged.ccs.hg38.aligned.chr17_10958130_11017414
 region=chr17:10958130-11017414
 
-Rscript /long-read-plot/longReadPlot.R --bam $bam --output $output.png --region $region --debug
+Rscript /long-read-plot/longReadPlot.R --bam $bam --output $outputRoot.png --region $region --debug
 
 #files created by the debug run above
 filesCreated=( "$outputRoot".adjusted.tsv.gz "$outputRoot".png "$outputRoot".tsv.gz )
