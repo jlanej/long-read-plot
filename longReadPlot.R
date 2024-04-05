@@ -42,7 +42,9 @@ option_list = list(
 opt_parser = OptionParser(option_list = option_list)
 opt = parse_args(opt_parser)
 
-dir.create(dirname(opt$output), showWarnings = FALSE)
+dir.create(dirname(opt$output),
+           showWarnings = TRUE,
+           recursive = TRUE)
 
 processed = processRegion(opt$bam, opt$region)
 savePlot(processed$g, opt$output)
