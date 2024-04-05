@@ -6,15 +6,12 @@ ENV TZ=Etc/UTC
 RUN apt-get update && apt-get -y upgrade && \
 apt-get install -y wget gnupg
 
+# add R repository to sources.list so we can install latest R versions
 RUN wget -qO- https://cloud.r-project.org/bin/linux/ubuntu/marutter_pubkey.asc |gpg --dearmor -o /usr/share/keyrings/r-project.gpg
 RUN echo "deb [signed-by=/usr/share/keyrings/r-project.gpg] https://cloud.r-project.org/bin/linux/ubuntu jammy-cran40/" | tee -a /etc/apt/sources.list.d/r-project.list
 
 RUN apt-get update && apt-get -y upgrade && \
-apt-get install -y libcurl4-openssl-dev git r-base r-base-dev
-
-RUN R -e "sessionInfo();installed.packages()"
-
-RUN apt-get update && apt-get -y upgrade && \
+apt-get install -y libcurl4-openssl-dev git r-base r-base-dev && \
 apt-get clean && apt-get purge && \
 rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
