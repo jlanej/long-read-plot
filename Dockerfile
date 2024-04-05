@@ -1,8 +1,11 @@
 FROM ubuntu:latest
 ARG DEBIAN_FRONTEND=noninteractive
 ENV TZ=Etc/UTC
+
 RUN apt-get update && apt-get -y upgrade && \
-apt-get install -y libcurl4-openssl-dev git r-base r-base-dev && \
+apt-get install -y libcurl4-openssl-dev git r-base r-base-dev
+
+RUN apt-get update && apt-get -y upgrade && \
 apt-get clean && apt-get purge && \
 rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
@@ -17,5 +20,5 @@ RUN R -e "BiocManager::install('GenomicAlignments')"
 ADD https://worldtimeapi.org/api/ip time.tmp
 RUN git clone https://github.com/jlanej/long-read-plot.git
 RUN Rscript long-read-plot/longReadPlot.R
-RUN R --version
+RUN R -e "sessionInfo();installed.packages() "
 CMD ["/bin/bash"]
