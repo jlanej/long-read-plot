@@ -23,7 +23,10 @@ RUN R -e "install.packages('BiocManager',dependencies=TRUE, repos='http://cran.r
 RUN R -e "BiocManager::install('Rsamtools')"
 RUN R -e "BiocManager::install('GenomicAlignments')"
 
+# Prevent caching the git clone TODO this seems like it could be done differently 
 ADD https://worldtimeapi.org/api/ip time.tmp
+
+# Clone the repo to get all resources and history
 RUN git clone https://github.com/jlanej/long-read-plot.git
 RUN Rscript long-read-plot/longReadPlot.R
 RUN R -e "sessionInfo();installed.packages()"
