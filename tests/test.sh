@@ -21,7 +21,7 @@ filesCreated=( "$outputRoot".adjusted.tsv.gz "$outputRoot".png "$outputRoot".tsv
 
 # files to compare are located in the image here
 compareDir=/long-read-plot/tests/test_output
-filesToCompare=($compareDir/NA19240_2020_merged.ccs.hg38.aligned.chr17_10958130_11017414.adjusted.tsv.gz $compareDir/NA19240_2020_merged.ccs.hg38.aligned.chr17_10958130_11017414.png $compareDir/NA19240_2020_merged.ccs.hg38.aligned.chr17_10958130_11017414.tsv.gz)
+filesToCompare=($compareDir/NA19240_2020_merged.ccs.hg38.aligned.chr17_10958130_11017414.adjusted.tsv.gz $compareDir/NA19240_2020_merged.ccs.hg38.aligned.chr17_10958130_11017414.arrow.png $compareDir/NA19240_2020_merged.ccs.hg38.aligned.chr17_10958130_11017414.tsv.gz)
 
 # diff the files and exit if they are different
 for i in ${!filesCreated[@]}; do

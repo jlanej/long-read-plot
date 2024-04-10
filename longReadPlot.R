@@ -18,7 +18,7 @@ option_list = list(
     type = "character",
     default = paste0(
       this.dir(),
-      "/examples/output/NA19240_2020_merged.ccs.hg38.aligned.chr17_10958130_11017414.png"
+      "/examples/output/NA19240_2020_merged.ccs.hg38.aligned.chr17_10958130_11017414.pdf"
     ),
     help = "output image file",
     metavar = "file"
