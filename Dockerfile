@@ -18,6 +18,8 @@ rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 RUN R -e "install.packages('optparse',dependencies=TRUE, repos='http://cran.rstudio.com/')"
 RUN R -e "install.packages('this.path',dependencies=TRUE, repos='http://cran.rstudio.com/')"
 RUN R -e "install.packages('ggplot2',dependencies=TRUE, repos='http://cran.rstudio.com/')"
+RUN R -e "install.packages('gridExtra',dependencies=TRUE, repos='http://cran.rstudio.com/')"
+
 RUN R -e "install.packages('BiocManager',dependencies=TRUE, repos='http://cran.rstudio.com/')"
 
 RUN R -e "BiocManager::install('Rsamtools')"
