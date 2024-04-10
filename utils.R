@@ -223,6 +223,19 @@ getParticlePlot <-
     return(g)
   }
 
+
+getArrowPlot<-
+  function(adjustedDF){
+    adjustedDF$sameStart = abs(adjustedDF$adjustedPos - adjustedDF$pos) < 10
+    g = ggplot(adjustedDF[which(!adjustedDF$sameStart), ])
+    geom_point(
+      data = adjustedDF[which(adjustedDF$sameStart),],
+      aes(x = adjustedPos, y = uniqueQname),
+      color = "black",
+      size = 2
+    )
+  }
+
 processRegion <-
   function(bamFile,
            ucscRegion = "chr1:1-1000",
