@@ -17,7 +17,7 @@ region=chr17:10958130-11017414
 Rscript /long-read-plot/longReadPlot.R --bam $bam --output $outputRoot.png --region $region --debug
 
 #files created by the debug run above
-filesCreated=( "$outputRoot".adjusted.tsv.gz "$outputRoot".png "$outputRoot".tsv.gz )
+filesCreated=( "$outputRoot".adjusted.tsv.gz "$outputRoot".particle.png "$outputRoot".tsv.gz )
 
 # files to compare are located in the image here
 compareDir=/long-read-plot/tests/test_output
