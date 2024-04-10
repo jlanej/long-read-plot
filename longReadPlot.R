@@ -1,6 +1,6 @@
 library(optparse)
 library(this.path)
-source(paste0(this.dir(), "/bamRUtils.R"))
+source(paste0(this.dir(), "/utils.R"))
 
 option_list = list(
   make_option(
