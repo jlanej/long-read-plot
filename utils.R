@@ -53,14 +53,14 @@ addClipCounts <- function(df) {
   df$LeftClipCount = 0
   df$RightClipCount = 0
   for (i in 1:nrow(df)) {
-    sLens = explodeCigarOpLengths(df[i, ]$cigar)
-    sOps = explodeCigarOps(df[i, ]$cigar)
+    sLens = explodeCigarOpLengths(df[i,]$cigar)
+    sOps = explodeCigarOps(df[i,]$cigar)
     if (sOps[[1]][[1]] == "S" | sOps[[1]][[1]] == "H") {
-      df[i, ]$LeftClipCount = sLens[[1]][[1]]
+      df[i,]$LeftClipCount = sLens[[1]][[1]]
     }
     if (sOps[[1]][[length(sOps[[1]])]] == "S" ||
         sOps[[1]][[length(sOps[[1]])]] == "H") {
-      df[i, ]$RightClipCount = sLens[[1]][[length(sOps[[1]])]]
+      df[i,]$RightClipCount = sLens[[1]][[length(sOps[[1]])]]
     }
   }
   return(df)
@@ -75,29 +75,29 @@ getAdjustedDF <- function(df) {
   
   
   for (qname in unique_qnames) {
-    dfSubset = df[df$qname == qname, ]
+    dfSubset = df[df$qname == qname,]
     if (nrow(dfSubset) > 1) {
       minSoftClip = min(dfSubset$LeftClipCount)
-      minimumPosition = min(dfSubset[which(dfSubset$LeftClipCount == minSoftClip),]$pos)
+      minimumPosition = min(dfSubset[which(dfSubset$LeftClipCount == minSoftClip), ]$pos)
       
       for (i in 1:nrow(dfSubset)) {
-        sLens = explodeCigarOpLengths(dfSubset[i,]$cigar)
-        sOps = explodeCigarOps(dfSubset[i,]$cigar)
+        sLens = explodeCigarOpLengths(dfSubset[i, ]$cigar)
+        sOps = explodeCigarOps(dfSubset[i, ]$cigar)
         hasLeftSoft = FALSE
         if (sOps[[1]][[1]] == "S" || sOps[[1]][[1]] == "H") {
-          dfSubset[i,]$adjustedPos = minimumPosition + sLens[[1]][[1]]
-          dfSubset[i,]$adjustedPosEnd = dfSubset[i,]$adjustedPos + dfSubset[i,]$cigarWidthAlongReferenceSpace
+          dfSubset[i, ]$adjustedPos = minimumPosition + sLens[[1]][[1]]
+          dfSubset[i, ]$adjustedPosEnd = dfSubset[i, ]$adjustedPos + dfSubset[i, ]$cigarWidthAlongReferenceSpace
           hasLeftSoft = TRUE
         }
         if (!hasLeftSoft) {
-          dfSubset[i,]$adjustedPos = dfSubset[i,]$pos
-          dfSubset[i,]$adjustedPosEnd = dfSubset[i,]$end
+          dfSubset[i, ]$adjustedPos = dfSubset[i, ]$pos
+          dfSubset[i, ]$adjustedPosEnd = dfSubset[i, ]$end
         }
-        adjustedDF = rbind(adjustedDF, dfSubset[i,])
+        adjustedDF = rbind(adjustedDF, dfSubset[i, ])
       }
     }
   }
-  adjustedDF = adjustedDF[order(adjustedDF$LeftClipCount), ]
+  adjustedDF = adjustedDF[order(adjustedDF$LeftClipCount),]
   adjustedDF$uniqueQname = make_unique(adjustedDF$qname, sep = "_aligment_#")
   adjustedDF$uniqueQname = ifelse(
     grepl("_aligment", adjustedDF$uniqueQname),
@@ -108,18 +108,15 @@ getAdjustedDF <- function(df) {
   adjustedDF$line_type = "alignment-start-to-end"
   
   # create and incex for each unique qname
-  indexDF = data.frame(qname = unique(adjustedDF$qname),
-                       qname_index = 1:length(unique(adjustedDF$qname)))
+  sortedDF = adjustedDF[order(adjustedDF$pos), ]
+  indexDF = data.frame(qname = unique(sortedDF$qname),
+                       qname_index = 1:length(unique(sortedDF$qname)))
   adjustedDF = inner_join(adjustedDF, indexDF, by = c("qname" = "qname"))
   adjustedDF$anonymousReadID = paste0("read_",
                                       adjustedDF$qname_index,
-                                      "_alignment_#",
+                                      "_alignment_",
                                       adjustedDF$alignment_number)
   
-  #   # merge(adjustedDF, indexDF, by.x = "qname", by.y = "qnames")
-  # # adjustedDF = adjustedDF[order(adjustedDF$LeftClipCount), ]
-  #
-  # # adjustedDF$index = 1
   
   return(list(adjustedDF = adjustedDF, df = df))
 }
@@ -243,14 +240,16 @@ getParticlePlot <-
 
 
 getArrowPlot <-
-  function(adjustedDF, linewidth = 1.5) {
+  function(adjustedDF,
+           linewidth,
+           pointsize) {
     adjustedDF$sameStart = abs(adjustedDF$adjustedPos - adjustedDF$pos) < 10
-    g = ggplot(adjustedDF[which(!adjustedDF$sameStart),])
+    g = ggplot(adjustedDF[which(!adjustedDF$sameStart), ])
     geom_point(
-      data = adjustedDF[which(adjustedDF$sameStart), ],
+      data = adjustedDF[which(adjustedDF$sameStart),],
       aes(x = adjustedPos, y = anonymousReadID),
       color = "black",
-      size = 2
+      size = pointsize
     )
     g = g + geom_segment(
       data = adjustedDF,
@@ -258,17 +257,53 @@ getArrowPlot <-
         x = pos,
         xend = end,
         y = anonymousReadID,
-        yend = anonymousReadID
+        yend = anonymousReadID,
+        color = alignment_number
+      ),
+      alpha = 1,
+      linewidth = 1,
+      linetype = "dotted"
+    )
+    
+    g = g + geom_point(
+      data = adjustedDF,
+      aes(x = end, y = anonymousReadID),
+      color = "black",
+      size = pointsize
+    )
+    #
+    
+    g = g + geom_segment(
+      aes(
+        x = pos,
+        xend = adjustedPos,
+        y = anonymousReadID,
+        yend = anonymousReadID,
+        color = alignment_number
       ),
       alpha = 1,
       linewidth = linewidth,
-      linetype = "dotted",
-      color = "black"
+      arrow = arrow()
     )
     
+    g = g + theme(panel.grid.minor = element_blank(),
+                  panel.background = element_blank())
     
     return(g)
   }
+
+# function to create an arrow plot for two sorting schemes
+# 1 sort by the start of the alignment
+# sort by the anonymous read ID
+sortArrowPlots <- function(adjustedDF,
+                           linewidth = .25,
+                           pointsize = .5) {
+  base =  getArrowPlot(adjustedDF, linewidth = linewidth, pointsize = pointsize)
+  gArrowStart = base + scale_y_discrete(limits = rev(adjustedDF[order(adjustedDF$qname_index),]$anonymousReadID))
+  gArrowReadID = base + scale_y_discrete(limits = rev(adjustedDF[order(adjustedDF$pos), ]$anonymousReadID))
+  results = list(gArrowStart = gArrowStart, gArrowReadID = gArrowReadID)
+  return(results)
+}
 
 
 processRegion <-
@@ -284,13 +319,15 @@ processRegion <-
     rearranged = getRearrangedDF(adjustedDF)
     rearrangedLines = getRearrangedLines(adjustedDF)
     gParticle = getParticlePlot(rearranged, rearrangedLines, adjustedDF)
-    gArrow = getArrowPlot(adjustedDF)
+    gArrows = sortArrowPlots(adjustedDF)
     # stop()
-    return(list(
-      gParticle = gParticle,
-      gArrow = gArrow,
-      bamAll = bamAll,
-      adjustedDF = adjustedDF
+    return(c(
+      gArrows,
+      list(
+        gParticle = gParticle,
+        bamAll = bamAll,
+        adjustedDF = adjustedDF
+      )
     ))
   }
 

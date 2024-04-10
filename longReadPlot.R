@@ -50,8 +50,14 @@ dir.create(dirname(opt$output),
 
 processed = processRegion(opt$bam, opt$region)
 # stop()
-savePlot(list(particle = processed$gParticle, arrow = processed$gArrow),
-         opt$output)
+savePlot(
+  list(
+    particle = processed$gParticle,
+    arrowSortStart = processed$gArrowStart,
+    arrowSortId = processed$gArrowReadID
+  ),
+  opt$output
+)
 
 if (opt$debug) {
   outgzfile = paste0(tools::file_path_sans_ext(opt$output), ".tsv.gz")
