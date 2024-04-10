@@ -46,8 +46,12 @@ dir.create(dirname(opt$output),
            showWarnings = TRUE,
            recursive = TRUE)
 
+
+
 processed = processRegion(opt$bam, opt$region)
-savePlot(processed$g, opt$output)
+# stop()
+savePlot(list(particle = processed$gParticle, arrow = processed$gArrow),
+         opt$output)
 
 if (opt$debug) {
   outgzfile = paste0(tools::file_path_sans_ext(opt$output), ".tsv.gz")

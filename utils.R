@@ -2,6 +2,7 @@ require(GenomicAlignments)
 require(Rsamtools)
 require(ggplot2)
 require(dplyr)
+require(gridExtra)
 
 .unlist <- function (x)
 {
@@ -52,14 +53,14 @@ addClipCounts <- function(df) {
   df$LeftClipCount = 0
   df$RightClipCount = 0
   for (i in 1:nrow(df)) {
-    sLens = explodeCigarOpLengths(df[i, ]$cigar)
-    sOps = explodeCigarOps(df[i, ]$cigar)
+    sLens = explodeCigarOpLengths(df[i,]$cigar)
+    sOps = explodeCigarOps(df[i,]$cigar)
     if (sOps[[1]][[1]] == "S" | sOps[[1]][[1]] == "H") {
-      df[i, ]$LeftClipCount = sLens[[1]][[1]]
+      df[i,]$LeftClipCount = sLens[[1]][[1]]
     }
     if (sOps[[1]][[length(sOps[[1]])]] == "S" ||
         sOps[[1]][[length(sOps[[1]])]] == "H") {
-      df[i, ]$RightClipCount = sLens[[1]][[length(sOps[[1]])]]
+      df[i,]$RightClipCount = sLens[[1]][[length(sOps[[1]])]]
     }
   }
   return(df)
@@ -74,29 +75,29 @@ getAdjustedDF <- function(df) {
   
   
   for (qname in unique_qnames) {
-    dfSubset = df[df$qname == qname, ]
+    dfSubset = df[df$qname == qname,]
     if (nrow(dfSubset) > 1) {
       minSoftClip = min(dfSubset$LeftClipCount)
-      minimumPosition = min(dfSubset[which(dfSubset$LeftClipCount == minSoftClip),]$pos)
+      minimumPosition = min(dfSubset[which(dfSubset$LeftClipCount == minSoftClip), ]$pos)
       
       for (i in 1:nrow(dfSubset)) {
-        sLens = explodeCigarOpLengths(dfSubset[i,]$cigar)
-        sOps = explodeCigarOps(dfSubset[i,]$cigar)
+        sLens = explodeCigarOpLengths(dfSubset[i, ]$cigar)
+        sOps = explodeCigarOps(dfSubset[i, ]$cigar)
         hasLeftSoft = FALSE
         if (sOps[[1]][[1]] == "S" || sOps[[1]][[1]] == "H") {
-          dfSubset[i,]$adjustedPos = minimumPosition + sLens[[1]][[1]]
-          dfSubset[i,]$adjustedPosEnd = dfSubset[i,]$adjustedPos + dfSubset[i,]$cigarWidthAlongReferenceSpace
+          dfSubset[i, ]$adjustedPos = minimumPosition + sLens[[1]][[1]]
+          dfSubset[i, ]$adjustedPosEnd = dfSubset[i, ]$adjustedPos + dfSubset[i, ]$cigarWidthAlongReferenceSpace
           hasLeftSoft = TRUE
         }
         if (!hasLeftSoft) {
-          dfSubset[i,]$adjustedPos = dfSubset[i,]$pos
-          dfSubset[i,]$adjustedPosEnd = dfSubset[i,]$end
+          dfSubset[i, ]$adjustedPos = dfSubset[i, ]$pos
+          dfSubset[i, ]$adjustedPosEnd = dfSubset[i, ]$end
         }
-        adjustedDF = rbind(adjustedDF, dfSubset[i,])
+        adjustedDF = rbind(adjustedDF, dfSubset[i, ])
       }
     }
   }
-  adjustedDF = adjustedDF[order(adjustedDF$LeftClipCount), ]
+  adjustedDF = adjustedDF[order(adjustedDF$LeftClipCount),]
   adjustedDF$uniqueQname = make_unique(adjustedDF$qname, sep = "_aligment_#")
   adjustedDF$uniqueQname = ifelse(
     grepl("_aligment", adjustedDF$uniqueQname),
@@ -104,7 +105,22 @@ getAdjustedDF <- function(df) {
     paste0(adjustedDF$uniqueQname, "_aligment_#1")
   )
   adjustedDF$alignment_number = as.factor(gsub(".*_", "", adjustedDF$uniqueQname))
-  adjustedDF$line_type="alignment-start-to-end"
+  adjustedDF$line_type = "alignment-start-to-end"
+  
+  # create and incex for each unique qname
+  indexDF = data.frame(qname = unique(adjustedDF$qname),
+                       qname_index = 1:length(unique(adjustedDF$qname)))
+  adjustedDF = inner_join(adjustedDF, indexDF, by = c("qname" = "qname"))
+  adjustedDF$anonymousReadID = paste0("read_",
+                                      adjustedDF$qname_index,
+                                      "_alignment_#",
+                                      adjustedDF$alignment_number)
+  
+  #   # merge(adjustedDF, indexDF, by.x = "qname", by.y = "qnames")
+  # # adjustedDF = adjustedDF[order(adjustedDF$LeftClipCount), ]
+  #
+  # # adjustedDF$index = 1
+  
   return(list(adjustedDF = adjustedDF, df = df))
 }
 
@@ -195,7 +211,8 @@ getParticlePlot <-
         y =  "read-space",
         xend = adjustedPosEnd,
         yend = "read-space",
-        color = alignment_number,linetype = line_type
+        color = alignment_number,
+        linetype = line_type
       ),
       alpha = 1,
       linewidth = 1,
@@ -208,7 +225,8 @@ getParticlePlot <-
         y =  "reference-space",
         xend = end,
         yend = "reference-space",
-        color = alignment_number,linetype = line_type
+        color = alignment_number,
+        linetype = line_type
       ),
       alpha = 1,
       linewidth = 1,
@@ -219,22 +237,39 @@ getParticlePlot <-
     g = g + xlab(xlab)
     # remove y axis label
     g = g + theme(axis.title.y = element_blank())
-    g=g+scale_linetype_manual(values=c("twodash","dotted","solid"))
+    g = g + scale_linetype_manual(values = c("twodash", "dotted", "solid"))
     return(g)
   }
 
 
-getArrowPlot<-
-  function(adjustedDF){
+getArrowPlot <-
+  function(adjustedDF, linewidth = 1.5) {
     adjustedDF$sameStart = abs(adjustedDF$adjustedPos - adjustedDF$pos) < 10
     g = ggplot(adjustedDF[which(!adjustedDF$sameStart), ])
     geom_point(
       data = adjustedDF[which(adjustedDF$sameStart),],
-      aes(x = adjustedPos, y = uniqueQname),
+      aes(x = adjustedPos, y = anonymousReadID),
       color = "black",
       size = 2
     )
+    g = g + geom_segment(
+      data = adjustedDF,
+      aes(
+        x = pos,
+        xend = end,
+        y = anonymousReadID,
+        yend = anonymousReadID
+      ),
+      alpha = 1,
+      linewidth = linewidth,
+      linetype = "dotted",
+      color = "black"
+    )
+    
+    
+    return(g)
   }
+
 
 processRegion <-
   function(bamFile,
@@ -249,23 +284,44 @@ processRegion <-
     rearranged = getRearrangedDF(adjustedDF)
     rearrangedLines = getRearrangedLines(adjustedDF)
     gParticle = getParticlePlot(rearranged, rearrangedLines, adjustedDF)
+    gArrow = getArrowPlot(adjustedDF)
+    # stop()
     return(list(
       gParticle = gParticle,
+      gArrow = gArrow,
       bamAll = bamAll,
       adjustedDF = adjustedDF
     ))
   }
 
-savePlot <- function(g,
+savePlot <- function(l,
                      filename,
                      width = 10,
-                     height = 5,
+                     height =  5,
                      dpi = "retina") {
+  # ggsave("arrange2x2.pdf",,
+  #        device = "pdf")
+  invisible(mapply(
+    ggsave,
+    file = paste0(
+      tools::file_path_sans_ext(filename),
+      ".",
+      names(l),
+      ".",
+      tools::file_ext(filename)
+    ),
+    plot = l
+  ))
+  
   ggsave(
     filename = filename,
-    plot = g,
+    marrangeGrob(
+      grobs = l,
+      nrow = length(l),
+      ncol = 1
+    ),
     width = width,
-    height = height,
+    height = height * length(l),
     dpi = dpi
   )
 }
