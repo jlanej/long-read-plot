@@ -53,14 +53,14 @@ addClipCounts <- function(df) {
   df$LeftClipCount = 0
   df$RightClipCount = 0
   for (i in 1:nrow(df)) {
-    sLens = explodeCigarOpLengths(df[i, ]$cigar)
-    sOps = explodeCigarOps(df[i, ]$cigar)
+    sLens = explodeCigarOpLengths(df[i,]$cigar)
+    sOps = explodeCigarOps(df[i,]$cigar)
     if (sOps[[1]][[1]] == "S" | sOps[[1]][[1]] == "H") {
-      df[i, ]$LeftClipCount = sLens[[1]][[1]]
+      df[i,]$LeftClipCount = sLens[[1]][[1]]
     }
     if (sOps[[1]][[length(sOps[[1]])]] == "S" ||
         sOps[[1]][[length(sOps[[1]])]] == "H") {
-      df[i, ]$RightClipCount = sLens[[1]][[length(sOps[[1]])]]
+      df[i,]$RightClipCount = sLens[[1]][[length(sOps[[1]])]]
     }
   }
   return(df)
@@ -75,29 +75,29 @@ getAdjustedDF <- function(df) {
   
   
   for (qname in unique_qnames) {
-    dfSubset = df[df$qname == qname, ]
+    dfSubset = df[df$qname == qname,]
     if (nrow(dfSubset) > 1) {
       minSoftClip = min(dfSubset$LeftClipCount)
-      minimumPosition = min(dfSubset[which(dfSubset$LeftClipCount == minSoftClip),]$pos)
+      minimumPosition = min(dfSubset[which(dfSubset$LeftClipCount == minSoftClip), ]$pos)
       
       for (i in 1:nrow(dfSubset)) {
-        sLens = explodeCigarOpLengths(dfSubset[i,]$cigar)
-        sOps = explodeCigarOps(dfSubset[i,]$cigar)
+        sLens = explodeCigarOpLengths(dfSubset[i, ]$cigar)
+        sOps = explodeCigarOps(dfSubset[i, ]$cigar)
         hasLeftSoft = FALSE
         if (sOps[[1]][[1]] == "S" || sOps[[1]][[1]] == "H") {
-          dfSubset[i,]$adjustedPos = minimumPosition + sLens[[1]][[1]]
-          dfSubset[i,]$adjustedPosEnd = dfSubset[i,]$adjustedPos + dfSubset[i,]$cigarWidthAlongReferenceSpace
+          dfSubset[i, ]$adjustedPos = minimumPosition + sLens[[1]][[1]]
+          dfSubset[i, ]$adjustedPosEnd = dfSubset[i, ]$adjustedPos + dfSubset[i, ]$cigarWidthAlongReferenceSpace
           hasLeftSoft = TRUE
         }
         if (!hasLeftSoft) {
-          dfSubset[i,]$adjustedPos = dfSubset[i,]$pos
-          dfSubset[i,]$adjustedPosEnd = dfSubset[i,]$end
+          dfSubset[i, ]$adjustedPos = dfSubset[i, ]$pos
+          dfSubset[i, ]$adjustedPosEnd = dfSubset[i, ]$end
         }
-        adjustedDF = rbind(adjustedDF, dfSubset[i,])
+        adjustedDF = rbind(adjustedDF, dfSubset[i, ])
       }
     }
   }
-  adjustedDF = adjustedDF[order(adjustedDF$LeftClipCount), ]
+  adjustedDF = adjustedDF[order(adjustedDF$LeftClipCount),]
   adjustedDF$uniqueQname = make_unique(adjustedDF$qname, sep = "_aligment_#")
   adjustedDF$uniqueQname = ifelse(
     grepl("_aligment", adjustedDF$uniqueQname),
@@ -108,7 +108,7 @@ getAdjustedDF <- function(df) {
   adjustedDF$line_type = "alignment-start-to-end"
   
   # create and incex for each unique qname
-  sortedDF = adjustedDF[order(adjustedDF$pos),]
+  sortedDF = adjustedDF[order(adjustedDF$pos), ]
   indexDF = data.frame(qname = unique(sortedDF$qname),
                        qname_index = 1:length(unique(sortedDF$qname)))
   adjustedDF = inner_join(adjustedDF, indexDF, by = c("qname" = "qname"))
@@ -218,34 +218,38 @@ getRearrangedLines <- function(adjustedDF) {
   return(rearrangedLines)
 }
 
-readSpaceStakedInt=105
-readSpaceInt=100
-referenceSpaceInt=50
-referenceSpaceStackInt=45
+readSpaceStakedInt = 105
+readSpaceInt = 100
+referenceSpaceInt = 50
+referenceSpaceStackInt = 45
 
 
-getParticlePlotStack <- function(rearranged,
-                                 rearrangedLines,
-                                 adjustedDF,
-                                 alphaRibbons = 0.05,
-                                 xlab = "Position") {
-  g = getParticlePlot(rearranged, rearrangedLines, adjustedDF, alphaRibbons, xlab)
+# TODO, add per read alignments on statcked portion, y-axis =readID
+getParticlePlotStack <- function(gParticle,
+                                 adjustedDF, alphaRibbons = 0.05) {
   stackedRead = getRearrangedDFStackRead(adjustedDF)
   stackedRef = getRearrangedDFStackRef(adjustedDF)
-  g = g + geom_polygon(data = stackedRead,
-                       aes(
-                         x = pos,
-                         y = type,
-                         group = qname,
-                         fill = alignment_number
-                       ))
-  g = g + geom_polygon(data = stackedRef,
-                       aes(
-                         x = pos,
-                         y = type,
-                         group = qname,
-                         fill = alignment_number
-                       ))
+  g = gParticle + geom_polygon(
+    data = stackedRead,
+    aes(
+      x = pos,
+      y = type,
+      group = qname,
+      fill = alignment_number
+    ),
+    alpha = alphaRibbons
+  )
+  g = g + geom_polygon(
+    data = stackedRef,
+    aes(
+      x = pos,
+      y = type,
+      group = qname,
+      fill = alignment_number
+      
+    ),
+    alpha = alphaRibbons
+  )
   g = g + scale_y_continuous(
     breaks = c(
       referenceSpaceStackInt,
@@ -259,6 +263,12 @@ getParticlePlotStack <- function(rearranged,
       "Read Space",
       "Read Space Stack"
     )
+  )
+  g = g + scale_y_continuous(
+    breaks = c(referenceSpaceStackInt,
+               readSpaceStakedInt),
+    labels = c("Reference Space",
+               "Read Space")
   )
   
   return(g)
@@ -334,22 +344,7 @@ getParticlePlot <-
     g = g + theme(panel.grid.minor = element_blank(),
                   panel.background = element_blank())
     
-    
     g = g + scale_y_continuous(limits = c(referenceSpaceInt, readSpaceInt))
-    # g = g + scale_y_continuous(
-    #   breaks = c(
-    #     referenceSpaceStackInt,
-    #     referenceSpaceInt,
-    #     readSpaceInt,
-    #     readSpaceStakedInt
-    #   ),
-    #   labels = c(
-    #     "Reference Space Stack",
-    #     "Reference Space",
-    #     "Read Space",
-    #     "Read Space Stack"
-    #   )
-    # )
     g = g + xlab(xlab)
     # remove y axis label
     g = g + theme(axis.title.y = element_blank())
@@ -364,9 +359,9 @@ getArrowPlot <-
            pointsize,
            yaxisFontSize) {
     adjustedDF$sameStart = abs(adjustedDF$adjustedPos - adjustedDF$pos) < 10
-    g = ggplot(adjustedDF[which(!adjustedDF$sameStart),])
+    g = ggplot(adjustedDF[which(!adjustedDF$sameStart), ])
     geom_point(
-      data = adjustedDF[which(adjustedDF$sameStart), ],
+      data = adjustedDF[which(adjustedDF$sameStart),],
       aes(x = adjustedPos, y = anonymousReadID),
       color = "black",
       size = pointsize
@@ -427,8 +422,8 @@ sortArrowPlots <- function(adjustedDF,
     pointsize = pointsize,
     yaxisFontSize = yaxisFontSize
   )
-  gArrowStart = base + scale_y_discrete(limits = rev(adjustedDF[order(adjustedDF$qname_index), ]$anonymousReadID))
-  gArrowReadID = base + scale_y_discrete(limits = rev(adjustedDF[order(adjustedDF$pos),]$anonymousReadID))
+  gArrowStart = base + scale_y_discrete(limits = rev(adjustedDF[order(adjustedDF$qname_index),]$anonymousReadID))
+  gArrowReadID = base + scale_y_discrete(limits = rev(adjustedDF[order(adjustedDF$pos), ]$anonymousReadID))
   results = list(gArrowStart = gArrowStart, gArrowReadID = gArrowReadID)
   return(results)
 }
@@ -440,14 +435,15 @@ processRegion <-
            minAlignments = 2) {
     region = strsplit(ucscRegion, ":|-")[[1]]
     bamAll = parseAlignments(bamFile, region)
-    bamAll = bamAll[which(bamAll$numAlignmentsForThisReadID >= minAlignments), ]
+    bamAll = bamAll[which(bamAll$numAlignmentsForThisReadID >= minAlignments),]
     adjusted = getAdjustedDF(df = bamAll)
     adjustedDF = adjusted$adjustedDF
     bamAll = adjusted$df
     rearranged = getRearrangedDF(adjustedDF)
     rearrangedLines = getRearrangedLines(adjustedDF)
     gParticle = getParticlePlotWCurves(rearranged, rearrangedLines, adjustedDF)
-    gParticleStack = getParticlePlotStack(rearranged, rearrangedLines, adjustedDF)
+    gParticleStack = getParticlePlotStack(getParticlePlot(rearranged, rearrangedLines, adjustedDF),
+                                          adjustedDF)
     gArrows = sortArrowPlots(adjustedDF)
     # stop()
     return(c(
