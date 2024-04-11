@@ -53,14 +53,14 @@ addClipCounts <- function(df) {
   df$LeftClipCount = 0
   df$RightClipCount = 0
   for (i in 1:nrow(df)) {
-    sLens = explodeCigarOpLengths(df[i,]$cigar)
-    sOps = explodeCigarOps(df[i,]$cigar)
+    sLens = explodeCigarOpLengths(df[i, ]$cigar)
+    sOps = explodeCigarOps(df[i, ]$cigar)
     if (sOps[[1]][[1]] == "S" | sOps[[1]][[1]] == "H") {
-      df[i,]$LeftClipCount = sLens[[1]][[1]]
+      df[i, ]$LeftClipCount = sLens[[1]][[1]]
     }
     if (sOps[[1]][[length(sOps[[1]])]] == "S" ||
         sOps[[1]][[length(sOps[[1]])]] == "H") {
-      df[i,]$RightClipCount = sLens[[1]][[length(sOps[[1]])]]
+      df[i, ]$RightClipCount = sLens[[1]][[length(sOps[[1]])]]
     }
   }
   return(df)
@@ -75,29 +75,29 @@ getAdjustedDF <- function(df) {
   
   
   for (qname in unique_qnames) {
-    dfSubset = df[df$qname == qname,]
+    dfSubset = df[df$qname == qname, ]
     if (nrow(dfSubset) > 1) {
       minSoftClip = min(dfSubset$LeftClipCount)
-      minimumPosition = min(dfSubset[which(dfSubset$LeftClipCount == minSoftClip), ]$pos)
+      minimumPosition = min(dfSubset[which(dfSubset$LeftClipCount == minSoftClip),]$pos)
       
       for (i in 1:nrow(dfSubset)) {
-        sLens = explodeCigarOpLengths(dfSubset[i, ]$cigar)
-        sOps = explodeCigarOps(dfSubset[i, ]$cigar)
+        sLens = explodeCigarOpLengths(dfSubset[i,]$cigar)
+        sOps = explodeCigarOps(dfSubset[i,]$cigar)
         hasLeftSoft = FALSE
         if (sOps[[1]][[1]] == "S" || sOps[[1]][[1]] == "H") {
-          dfSubset[i, ]$adjustedPos = minimumPosition + sLens[[1]][[1]]
-          dfSubset[i, ]$adjustedPosEnd = dfSubset[i, ]$adjustedPos + dfSubset[i, ]$cigarWidthAlongReferenceSpace
+          dfSubset[i,]$adjustedPos = minimumPosition + sLens[[1]][[1]]
+          dfSubset[i,]$adjustedPosEnd = dfSubset[i,]$adjustedPos + dfSubset[i,]$cigarWidthAlongReferenceSpace
           hasLeftSoft = TRUE
         }
         if (!hasLeftSoft) {
-          dfSubset[i, ]$adjustedPos = dfSubset[i, ]$pos
-          dfSubset[i, ]$adjustedPosEnd = dfSubset[i, ]$end
+          dfSubset[i,]$adjustedPos = dfSubset[i,]$pos
+          dfSubset[i,]$adjustedPosEnd = dfSubset[i,]$end
         }
-        adjustedDF = rbind(adjustedDF, dfSubset[i, ])
+        adjustedDF = rbind(adjustedDF, dfSubset[i,])
       }
     }
   }
-  adjustedDF = adjustedDF[order(adjustedDF$LeftClipCount),]
+  adjustedDF = adjustedDF[order(adjustedDF$LeftClipCount), ]
   adjustedDF$uniqueQname = make_unique(adjustedDF$qname, sep = "_aligment_#")
   adjustedDF$uniqueQname = ifelse(
     grepl("_aligment", adjustedDF$uniqueQname),
@@ -108,7 +108,7 @@ getAdjustedDF <- function(df) {
   adjustedDF$line_type = "alignment-start-to-end"
   
   # create and incex for each unique qname
-  sortedDF = adjustedDF[order(adjustedDF$pos), ]
+  sortedDF = adjustedDF[order(adjustedDF$pos),]
   indexDF = data.frame(qname = unique(sortedDF$qname),
                        qname_index = 1:length(unique(sortedDF$qname)))
   adjustedDF = inner_join(adjustedDF, indexDF, by = c("qname" = "qname"))
@@ -137,10 +137,10 @@ getRearrangedDF <- function(adjustedDF) {
       adjustedDF$end
     ),
     type = c(
-      rep("reference-space", nrow(adjustedDF)),
-      rep("read-space", nrow(adjustedDF)),
-      rep("read-space", nrow(adjustedDF)),
-      rep("reference-space", nrow(adjustedDF))
+      rep(referenceSpaceInt, nrow(adjustedDF)),
+      rep(readSpaceInt, nrow(adjustedDF)),
+      rep(readSpaceInt, nrow(adjustedDF)),
+      rep(referenceSpaceInt, nrow(adjustedDF))
     ),
     qname = c(
       adjustedDF$uniqueQname,
@@ -162,8 +162,8 @@ getRearrangedDFStackRead <- function(adjustedDF) {
     ),
     type = c(
       rep("read-space-stack", nrow(adjustedDF)),
-      rep("read-space", nrow(adjustedDF)),
-      rep("read-space", nrow(adjustedDF)),
+      rep(readSpaceInt, nrow(adjustedDF)),
+      rep(readSpaceInt, nrow(adjustedDF)),
       rep("read-space-stack", nrow(adjustedDF))
     ),
     qname = c(
@@ -186,10 +186,10 @@ getRearrangedDFStackRef <- function(adjustedDF) {
       adjustedDF$end
     ),
     type = c(
-      rep("reference-space-stack", nrow(adjustedDF)),
-      rep("reference-space", nrow(adjustedDF)),
-      rep("reference-space", nrow(adjustedDF)),
-      rep("reference-space-stack", nrow(adjustedDF))
+      rep(referenceSpaceStackInt, nrow(adjustedDF)),
+      rep(referenceSpaceInt, nrow(adjustedDF)),
+      rep(referenceSpaceInt, nrow(adjustedDF)),
+      rep(referenceSpaceStackInt, nrow(adjustedDF))
     ),
     qname = c(
       adjustedDF$uniqueQname,
@@ -218,11 +218,17 @@ getRearrangedLines <- function(adjustedDF) {
   return(rearrangedLines)
 }
 
+readSpaceStakedInt=105
+readSpaceInt=100
+referenceSpaceInt=50
+referenceSpaceStackInt=45
+
+
 getParticlePlotStack <- function(rearranged,
-                                         rearrangedLines,
-                                         adjustedDF,
-                                         alphaRibbons = 0.05,
-                                         xlab = "Position") {
+                                 rearrangedLines,
+                                 adjustedDF,
+                                 alphaRibbons = 0.05,
+                                 xlab = "Position") {
   g = getParticlePlot(rearranged, rearrangedLines, adjustedDF, alphaRibbons, xlab)
   stackedRead = getRearrangedDFStackRead(adjustedDF)
   stackedRef = getRearrangedDFStackRef(adjustedDF)
@@ -240,7 +246,20 @@ getParticlePlotStack <- function(rearranged,
                          group = qname,
                          fill = alignment_number
                        ))
-  g = g + scale_y_discrete(limits = c("reference-space-stack","reference-space", "read-space","read-space-stack"))
+  g = g + scale_y_continuous(
+    breaks = c(
+      referenceSpaceStackInt,
+      referenceSpaceInt,
+      readSpaceInt,
+      readSpaceStakedInt
+    ),
+    labels = c(
+      "Reference Space Stack",
+      "Reference Space",
+      "Read Space",
+      "Read Space Stack"
+    )
+  )
   
   return(g)
 }
@@ -256,9 +275,9 @@ getParticlePlotWCurves <- function(rearranged,
     data = adjustedDF,
     aes(
       x = adjustedPos ,
-      y =  "read-space",
+      y =  readSpaceInt,
       xend = adjustedPosEnd,
-      yend = "read-space",
+      yend = readSpaceInt,
       color = alignment_number,
       linetype = line_type
     ),
@@ -270,9 +289,9 @@ getParticlePlotWCurves <- function(rearranged,
     data = adjustedDF,
     aes(
       x = pos ,
-      y =  "reference-space",
+      y =  referenceSpaceInt,
       xend = end,
-      yend = "reference-space",
+      yend = referenceSpaceInt,
       color = alignment_number,
       linetype = line_type
     ),
@@ -296,8 +315,8 @@ getParticlePlot <-
       aes(
         x = adjustedPos ,
         xend = refpos,
-        y =  "read-space",
-        yend = "reference-space",
+        y =  readSpaceInt,
+        yend = referenceSpaceInt,
         color = alignment_number,
         linetype = line_type
       ),
@@ -316,7 +335,21 @@ getParticlePlot <-
                   panel.background = element_blank())
     
     
-    g = g + scale_y_discrete(limits = c("reference-space", "read-space"))
+    g = g + scale_y_continuous(limits = c(referenceSpaceInt, readSpaceInt))
+    # g = g + scale_y_continuous(
+    #   breaks = c(
+    #     referenceSpaceStackInt,
+    #     referenceSpaceInt,
+    #     readSpaceInt,
+    #     readSpaceStakedInt
+    #   ),
+    #   labels = c(
+    #     "Reference Space Stack",
+    #     "Reference Space",
+    #     "Read Space",
+    #     "Read Space Stack"
+    #   )
+    # )
     g = g + xlab(xlab)
     # remove y axis label
     g = g + theme(axis.title.y = element_blank())
@@ -331,9 +364,9 @@ getArrowPlot <-
            pointsize,
            yaxisFontSize) {
     adjustedDF$sameStart = abs(adjustedDF$adjustedPos - adjustedDF$pos) < 10
-    g = ggplot(adjustedDF[which(!adjustedDF$sameStart), ])
+    g = ggplot(adjustedDF[which(!adjustedDF$sameStart),])
     geom_point(
-      data = adjustedDF[which(adjustedDF$sameStart),],
+      data = adjustedDF[which(adjustedDF$sameStart), ],
       aes(x = adjustedPos, y = anonymousReadID),
       color = "black",
       size = pointsize
@@ -394,8 +427,8 @@ sortArrowPlots <- function(adjustedDF,
     pointsize = pointsize,
     yaxisFontSize = yaxisFontSize
   )
-  gArrowStart = base + scale_y_discrete(limits = rev(adjustedDF[order(adjustedDF$qname_index),]$anonymousReadID))
-  gArrowReadID = base + scale_y_discrete(limits = rev(adjustedDF[order(adjustedDF$pos), ]$anonymousReadID))
+  gArrowStart = base + scale_y_discrete(limits = rev(adjustedDF[order(adjustedDF$qname_index), ]$anonymousReadID))
+  gArrowReadID = base + scale_y_discrete(limits = rev(adjustedDF[order(adjustedDF$pos),]$anonymousReadID))
   results = list(gArrowStart = gArrowStart, gArrowReadID = gArrowReadID)
   return(results)
 }
@@ -407,7 +440,7 @@ processRegion <-
            minAlignments = 2) {
     region = strsplit(ucscRegion, ":|-")[[1]]
     bamAll = parseAlignments(bamFile, region)
-    bamAll = bamAll[which(bamAll$numAlignmentsForThisReadID >= minAlignments),]
+    bamAll = bamAll[which(bamAll$numAlignmentsForThisReadID >= minAlignments), ]
     adjusted = getAdjustedDF(df = bamAll)
     adjustedDF = adjusted$adjustedDF
     bamAll = adjusted$df
