@@ -242,7 +242,8 @@ getParticlePlot <-
 getArrowPlot <-
   function(adjustedDF,
            linewidth,
-           pointsize) {
+           pointsize,
+           yaxisFontSize) {
     adjustedDF$sameStart = abs(adjustedDF$adjustedPos - adjustedDF$pos) < 10
     g = ggplot(adjustedDF[which(!adjustedDF$sameStart), ])
     geom_point(
@@ -289,6 +290,8 @@ getArrowPlot <-
     g = g + theme(panel.grid.minor = element_blank(),
                   panel.background = element_blank())
     
+    g = g + theme(text = element_text(size = yaxisFontSize))
+    
     return(g)
   }
 
@@ -297,8 +300,14 @@ getArrowPlot <-
 # sort by the anonymous read ID
 sortArrowPlots <- function(adjustedDF,
                            linewidth = .25,
-                           pointsize = .5) {
-  base =  getArrowPlot(adjustedDF, linewidth = linewidth, pointsize = pointsize)
+                           pointsize = .5,
+                           yaxisFontSize = 5) {
+  base =  getArrowPlot(
+    adjustedDF,
+    linewidth = linewidth,
+    pointsize = pointsize,
+    yaxisFontSize = yaxisFontSize
+  )
   gArrowStart = base + scale_y_discrete(limits = rev(adjustedDF[order(adjustedDF$qname_index),]$anonymousReadID))
   gArrowReadID = base + scale_y_discrete(limits = rev(adjustedDF[order(adjustedDF$pos), ]$anonymousReadID))
   results = list(gArrowStart = gArrowStart, gArrowReadID = gArrowReadID)
