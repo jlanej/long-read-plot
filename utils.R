@@ -161,10 +161,10 @@ getRearrangedDFStackRead <- function(adjustedDF) {
       adjustedDF$adjustedPosEnd
     ),
     type = c(
-      rep("read-space-stack", nrow(adjustedDF)),
+      rep(readSpaceStakedInt, nrow(adjustedDF)),
       rep(readSpaceInt, nrow(adjustedDF)),
       rep(readSpaceInt, nrow(adjustedDF)),
-      rep("read-space-stack", nrow(adjustedDF))
+      rep(readSpaceStakedInt, nrow(adjustedDF))
     ),
     qname = c(
       adjustedDF$uniqueQname,
