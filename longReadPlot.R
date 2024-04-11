@@ -13,6 +13,7 @@ option_list = list(
     help = "bam file to plot",
     metavar = "file"
   ),
+  # TODO - this is expanded to multiple plots
   make_option(
     c("-o", "--output"),
     type = "character",
@@ -53,6 +54,7 @@ processed = processRegion(opt$bam, opt$region)
 savePlot(
   list(
     particle = processed$gParticle,
+    particleHist = processed$gParticleHist,
     arrowSortStart = processed$gArrowStart,
     arrowSortId = processed$gArrowReadID
   ),
