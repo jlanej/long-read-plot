@@ -54,7 +54,7 @@ processed = processRegion(opt$bam, opt$region)
 savePlot(
   list(
     particle = processed$gParticle,
-    particleHist = processed$gParticleHist,
+    particleStack = processed$gParticleStack,
     arrowSortStart = processed$gArrowStart,
     arrowSortId = processed$gArrowReadID
   ),

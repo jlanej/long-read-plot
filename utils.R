@@ -152,6 +152,55 @@ getRearrangedDF <- function(adjustedDF) {
   rearranged$alignment_number = as.factor(gsub(".*_", "", rearranged$qname))
   return(rearranged)
 }
+getRearrangedDFStackRead <- function(adjustedDF) {
+  rearranged = data.frame(
+    pos = c(
+      adjustedDF$adjustedPos,
+      adjustedDF$adjustedPos,
+      adjustedDF$adjustedPosEnd,
+      adjustedDF$adjustedPosEnd
+    ),
+    type = c(
+      rep("read-space-stack", nrow(adjustedDF)),
+      rep("read-space", nrow(adjustedDF)),
+      rep("read-space", nrow(adjustedDF)),
+      rep("read-space-stack", nrow(adjustedDF))
+    ),
+    qname = c(
+      adjustedDF$uniqueQname,
+      adjustedDF$uniqueQname,
+      adjustedDF$uniqueQname,
+      adjustedDF$uniqueQname
+    )
+  )
+  rearranged$alignment_number = as.factor(gsub(".*_", "", rearranged$qname))
+  return(rearranged)
+}
+
+getRearrangedDFStackRef <- function(adjustedDF) {
+  rearranged = data.frame(
+    pos = c(
+      adjustedDF$pos,
+      adjustedDF$pos,
+      adjustedDF$end,
+      adjustedDF$end
+    ),
+    type = c(
+      rep("reference-space-stack", nrow(adjustedDF)),
+      rep("reference-space", nrow(adjustedDF)),
+      rep("reference-space", nrow(adjustedDF)),
+      rep("reference-space-stack", nrow(adjustedDF))
+    ),
+    qname = c(
+      adjustedDF$uniqueQname,
+      adjustedDF$uniqueQname,
+      adjustedDF$uniqueQname,
+      adjustedDF$uniqueQname
+    )
+  )
+  rearranged$alignment_number = as.factor(gsub(".*_", "", rearranged$qname))
+  return(rearranged)
+}
 
 
 getRearrangedLines <- function(adjustedDF) {
@@ -169,20 +218,30 @@ getRearrangedLines <- function(adjustedDF) {
   return(rearrangedLines)
 }
 
-getParticlePlotWithHistogram <- function(rearranged,
+getParticlePlotStack <- function(rearranged,
                                          rearrangedLines,
                                          adjustedDF,
                                          alphaRibbons = 0.05,
                                          xlab = "Position") {
   g = getParticlePlot(rearranged, rearrangedLines, adjustedDF, alphaRibbons, xlab)
-  g = g + geom_histogram(
-    data = adjustedDF,
-    aes(x = adjustedPos,
-        fill = alignment_number),
-    alpha = alphaRibbons,
-    position = "identity",
-    bins=100
-  )
+  stackedRead = getRearrangedDFStackRead(adjustedDF)
+  stackedRef = getRearrangedDFStackRef(adjustedDF)
+  g = g + geom_polygon(data = stackedRead,
+                       aes(
+                         x = pos,
+                         y = type,
+                         group = qname,
+                         fill = alignment_number
+                       ))
+  g = g + geom_polygon(data = stackedRef,
+                       aes(
+                         x = pos,
+                         y = type,
+                         group = qname,
+                         fill = alignment_number
+                       ))
+  g = g + scale_y_discrete(limits = c("reference-space-stack","reference-space", "read-space","read-space-stack"))
+  
   return(g)
 }
 
@@ -355,14 +414,14 @@ processRegion <-
     rearranged = getRearrangedDF(adjustedDF)
     rearrangedLines = getRearrangedLines(adjustedDF)
     gParticle = getParticlePlotWCurves(rearranged, rearrangedLines, adjustedDF)
-    gParticleHist = getParticlePlot(rearranged, rearrangedLines, adjustedDF)
+    gParticleStack = getParticlePlotStack(rearranged, rearrangedLines, adjustedDF)
     gArrows = sortArrowPlots(adjustedDF)
     # stop()
     return(c(
       gArrows,
       list(
         gParticle = gParticle,
-        gParticleHist = gParticleHist,
+        gParticleStack = gParticleStack,
         bamAll = bamAll,
         adjustedDF = adjustedDF
       )
