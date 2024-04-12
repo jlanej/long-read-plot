@@ -237,7 +237,7 @@ getParticlePlotStack <- function(gParticle,
       group = qname,
       fill = alignment_number
     ),
-    alpha = 1
+    alpha = .75
   )
   g = g + geom_polygon(
     data = stackedRef,
