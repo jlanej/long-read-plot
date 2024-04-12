@@ -224,7 +224,7 @@ referenceSpaceInt = 50
 referenceSpaceStackInt = 45
 
 
-# TODO, add per read alignments on statcked portion, y-axis =readID
+# TODO, on top/bottom of stack, add particle curves
 getParticlePlotStack <- function(gParticle,
                                  adjustedDF, alphaRibbons = .5) {
   stackedRead = getRearrangedDFStackRead(adjustedDF)
