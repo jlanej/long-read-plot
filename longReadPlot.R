@@ -53,12 +53,13 @@ processed = processRegion(opt$bam, opt$region)
 # stop()
 savePlot(
   list(
-    particle = processed$gParticle,
     particleStack = processed$gParticleStack,
+    particle = processed$gParticle,
     arrowSortStart = processed$gArrowStart,
     arrowSortId = processed$gArrowReadID
   ),
-  opt$output
+  opt$output,
+  createIndividualPlots = opt$debug
 )
 
 if (opt$debug) {

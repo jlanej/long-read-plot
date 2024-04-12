@@ -161,10 +161,10 @@ getRearrangedDFStackRead <- function(adjustedDF) {
       adjustedDF$adjustedPosEnd
     ),
     type = c(
-      rep(readSpaceStakedInt, nrow(adjustedDF)),
-      rep(readSpaceInt, nrow(adjustedDF)),
-      rep(readSpaceInt, nrow(adjustedDF)),
-      rep(readSpaceStakedInt, nrow(adjustedDF))
+      adjustedDF$qname_index + rep(readSpaceInt + 1, nrow(adjustedDF)),
+      adjustedDF$qname_index + rep(readSpaceInt, nrow(adjustedDF)),
+      adjustedDF$qname_index + rep(readSpaceInt, nrow(adjustedDF)),
+      adjustedDF$qname_index + rep(readSpaceInt + 1, nrow(adjustedDF))
     ),
     qname = c(
       adjustedDF$uniqueQname,
@@ -186,10 +186,10 @@ getRearrangedDFStackRef <- function(adjustedDF) {
       adjustedDF$end
     ),
     type = c(
-      rep(referenceSpaceStackInt, nrow(adjustedDF)),
-      rep(referenceSpaceInt, nrow(adjustedDF)),
-      rep(referenceSpaceInt, nrow(adjustedDF)),
-      rep(referenceSpaceStackInt, nrow(adjustedDF))
+      rep(referenceSpaceInt - 1, nrow(adjustedDF)) - adjustedDF$qname_index,
+      rep(referenceSpaceInt, nrow(adjustedDF)) - adjustedDF$qname_index,
+      rep(referenceSpaceInt, nrow(adjustedDF)) - adjustedDF$qname_index,
+      rep(referenceSpaceInt - 1, nrow(adjustedDF)) - adjustedDF$qname_index
     ),
     qname = c(
       adjustedDF$uniqueQname,
@@ -226,7 +226,7 @@ referenceSpaceStackInt = 45
 
 # TODO, add per read alignments on statcked portion, y-axis =readID
 getParticlePlotStack <- function(gParticle,
-                                 adjustedDF, alphaRibbons = 0.05) {
+                                 adjustedDF, alphaRibbons = 1) {
   stackedRead = getRearrangedDFStackRead(adjustedDF)
   stackedRef = getRearrangedDFStackRef(adjustedDF)
   g = gParticle + geom_polygon(
@@ -250,23 +250,23 @@ getParticlePlotStack <- function(gParticle,
     ),
     alpha = alphaRibbons
   )
+  # g = g + scale_y_continuous(
+  #   breaks = c(
+  #     referenceSpaceStackInt,
+  #     referenceSpaceInt,
+  #     readSpaceInt,
+  #     readSpaceStakedInt
+  #   ),
+  #   labels = c(
+  #     "Reference Space Alignments",
+  #     "Reference Space",
+  #     "Read Space",
+  #     "Read Space Alignments"
+  #   )
+  # )
   g = g + scale_y_continuous(
-    breaks = c(
-      referenceSpaceStackInt,
-      referenceSpaceInt,
-      readSpaceInt,
-      readSpaceStakedInt
-    ),
-    labels = c(
-      "Reference Space Stack",
-      "Reference Space",
-      "Read Space",
-      "Read Space Stack"
-    )
-  )
-  g = g + scale_y_continuous(
-    breaks = c(referenceSpaceStackInt,
-               readSpaceStakedInt),
+    breaks = c(referenceSpaceInt,
+               readSpaceInt),
     labels = c("Reference Space",
                "Read Space")
   )
@@ -306,6 +306,13 @@ addCurves <- function(gParticle, adjustedDF,
     curvature = curvature,
     arrow = arrow()
   )
+  g = g + scale_y_continuous(
+    breaks = c(referenceSpaceInt,
+               readSpaceInt),
+    labels = c("Reference Space",
+               "Read Space")
+  ) + expand_limits(y = c(referenceSpaceStackInt - 15, readSpaceStakedInt +
+                            15))
   return(g)
 }
 getParticlePlot <-
@@ -455,27 +462,32 @@ processRegion <-
 
 savePlot <- function(l,
                      filename,
+                     createIndividualPlots = TRUE,
                      width = 10,
                      singleheight =  5,
-                     comboheight = 8,
+                     comboheight = 5,
                      dpi = "retina") {
+  
   # ggsave("arrange2x2.pdf",,
   #        device = "pdf")
-  invisible(mapply(
-    ggsave,
-    file = paste0(
-      tools::file_path_sans_ext(filename),
-      ".",
-      names(l),
-      ".",
-      tools::file_ext(filename)
-    ),
-    plot = l,
-    width = width,
-    height = singleheight,
-    dpi = dpi
-  ))
   
+  if(createIndividualPlots) {
+    invisible(mapply(
+      ggsave,
+      file = paste0(
+        tools::file_path_sans_ext(filename),
+        ".",
+        names(l),
+        ".",
+        tools::file_ext(filename)
+      ),
+      plot = l,
+      width = width,
+      height = singleheight,
+      dpi = dpi
+    ))
+  }
+    
   ggsave(
     filename = filename,
     marrangeGrob(
