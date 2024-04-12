@@ -137,10 +137,59 @@ getRearrangedDF <- function(adjustedDF) {
       adjustedDF$end
     ),
     type = c(
-      rep("reference-space", nrow(adjustedDF)),
-      rep("read-space", nrow(adjustedDF)),
-      rep("read-space", nrow(adjustedDF)),
-      rep("reference-space", nrow(adjustedDF))
+      rep(referenceSpaceInt, nrow(adjustedDF)),
+      rep(readSpaceInt, nrow(adjustedDF)),
+      rep(readSpaceInt, nrow(adjustedDF)),
+      rep(referenceSpaceInt, nrow(adjustedDF))
+    ),
+    qname = c(
+      adjustedDF$uniqueQname,
+      adjustedDF$uniqueQname,
+      adjustedDF$uniqueQname,
+      adjustedDF$uniqueQname
+    )
+  )
+  rearranged$alignment_number = as.factor(gsub(".*_", "", rearranged$qname))
+  return(rearranged)
+}
+getRearrangedDFStackRead <- function(adjustedDF) {
+  rearranged = data.frame(
+    pos = c(
+      adjustedDF$adjustedPos,
+      adjustedDF$adjustedPos,
+      adjustedDF$adjustedPosEnd,
+      adjustedDF$adjustedPosEnd
+    ),
+    type = c(
+      adjustedDF$qname_index + rep(readSpaceInt + 1, nrow(adjustedDF)),
+      adjustedDF$qname_index + rep(readSpaceInt, nrow(adjustedDF)),
+      adjustedDF$qname_index + rep(readSpaceInt, nrow(adjustedDF)),
+      adjustedDF$qname_index + rep(readSpaceInt + 1, nrow(adjustedDF))
+    ),
+    qname = c(
+      adjustedDF$uniqueQname,
+      adjustedDF$uniqueQname,
+      adjustedDF$uniqueQname,
+      adjustedDF$uniqueQname
+    )
+  )
+  rearranged$alignment_number = as.factor(gsub(".*_", "", rearranged$qname))
+  return(rearranged)
+}
+
+getRearrangedDFStackRef <- function(adjustedDF) {
+  rearranged = data.frame(
+    pos = c(
+      adjustedDF$pos,
+      adjustedDF$pos,
+      adjustedDF$end,
+      adjustedDF$end
+    ),
+    type = c(
+      rep(referenceSpaceInt - 1, nrow(adjustedDF)) - adjustedDF$qname_index,
+      rep(referenceSpaceInt, nrow(adjustedDF)) - adjustedDF$qname_index,
+      rep(referenceSpaceInt, nrow(adjustedDF)) - adjustedDF$qname_index,
+      rep(referenceSpaceInt - 1, nrow(adjustedDF)) - adjustedDF$qname_index
     ),
     qname = c(
       adjustedDF$uniqueQname,
@@ -169,12 +218,108 @@ getRearrangedLines <- function(adjustedDF) {
   return(rearrangedLines)
 }
 
+readSpaceStakedInt = 105
+readSpaceInt = 100
+referenceSpaceInt = 50
+referenceSpaceStackInt = 45
+
+
+# TODO, add per read alignments on statcked portion, y-axis =readID
+getParticlePlotStack <- function(gParticle,
+                                 adjustedDF, alphaRibbons = 1) {
+  stackedRead = getRearrangedDFStackRead(adjustedDF)
+  stackedRef = getRearrangedDFStackRef(adjustedDF)
+  g = gParticle + geom_polygon(
+    data = stackedRead,
+    aes(
+      x = pos,
+      y = type,
+      group = qname,
+      fill = alignment_number
+    ),
+    alpha = alphaRibbons
+  )
+  g = g + geom_polygon(
+    data = stackedRef,
+    aes(
+      x = pos,
+      y = type,
+      group = qname,
+      fill = alignment_number
+      
+    ),
+    alpha = alphaRibbons
+  )
+  # g = g + scale_y_continuous(
+  #   breaks = c(
+  #     referenceSpaceStackInt,
+  #     referenceSpaceInt,
+  #     readSpaceInt,
+  #     readSpaceStakedInt
+  #   ),
+  #   labels = c(
+  #     "Reference Space Alignments",
+  #     "Reference Space",
+  #     "Read Space",
+  #     "Read Space Alignments"
+  #   )
+  # )
+  g = g + scale_y_continuous(
+    breaks = c(referenceSpaceInt,
+               readSpaceInt),
+    labels = c("Reference Space",
+               "Read Space")
+  )
+  
+  return(g)
+}
+
+addCurves <- function(gParticle, adjustedDF,
+                      curvature = 0.75) {
+  # g = getParticlePlot(rearranged, rearrangedLines, adjustedDF, alphaRibbons, xlab)
+  g = gParticle + geom_curve(
+    data = adjustedDF,
+    aes(
+      x = adjustedPos ,
+      y =  readSpaceInt,
+      xend = adjustedPosEnd,
+      yend = readSpaceInt,
+      color = alignment_number,
+      linetype = line_type
+    ),
+    alpha = 1,
+    linewidth = 1,
+    curvature = -1 * curvature,
+    arrow = arrow()
+  ) + geom_curve(
+    data = adjustedDF,
+    aes(
+      x = pos ,
+      y =  referenceSpaceInt,
+      xend = end,
+      yend = referenceSpaceInt,
+      color = alignment_number,
+      linetype = line_type
+    ),
+    alpha = 1,
+    linewidth = 1,
+    curvature = curvature,
+    arrow = arrow()
+  )
+  g = g + scale_y_continuous(
+    breaks = c(referenceSpaceInt,
+               readSpaceInt),
+    labels = c("Reference Space",
+               "Read Space")
+  ) + expand_limits(y = c(referenceSpaceStackInt - 15, readSpaceStakedInt +
+                            15))
+  return(g)
+}
 getParticlePlot <-
   function(rearranged,
            rearrangedLines,
            adjustedDF,
            alphaRibbons = 0.05,
-           curvature = 0.75,
            xlab = "Position") {
     g = ggplot(rearranged)
     g = g + geom_segment(
@@ -182,8 +327,8 @@ getParticlePlot <-
       aes(
         x = adjustedPos ,
         xend = refpos,
-        y =  "read-space",
-        yend = "reference-space",
+        y =  readSpaceInt,
+        yend = referenceSpaceInt,
         color = alignment_number,
         linetype = line_type
       ),
@@ -201,36 +346,7 @@ getParticlePlot <-
     g = g + theme(panel.grid.minor = element_blank(),
                   panel.background = element_blank())
     
-    g = g + geom_curve(
-      data = adjustedDF,
-      aes(
-        x = adjustedPos ,
-        y =  "read-space",
-        xend = adjustedPosEnd,
-        yend = "read-space",
-        color = alignment_number,
-        linetype = line_type
-      ),
-      alpha = 1,
-      linewidth = 1,
-      curvature = -1 * curvature,
-      arrow = arrow()
-    ) + geom_curve(
-      data = adjustedDF,
-      aes(
-        x = pos ,
-        y =  "reference-space",
-        xend = end,
-        yend = "reference-space",
-        color = alignment_number,
-        linetype = line_type
-      ),
-      alpha = 1,
-      linewidth = 1,
-      curvature = curvature,
-      arrow = arrow()
-    )
-    g = g + scale_y_discrete(limits = c("reference-space", "read-space"))
+    g = g + scale_y_continuous(limits = c(referenceSpaceInt, readSpaceInt))
     g = g + xlab(xlab)
     # remove y axis label
     g = g + theme(axis.title.y = element_blank())
@@ -327,13 +443,17 @@ processRegion <-
     bamAll = adjusted$df
     rearranged = getRearrangedDF(adjustedDF)
     rearrangedLines = getRearrangedLines(adjustedDF)
-    gParticle = getParticlePlot(rearranged, rearrangedLines, adjustedDF)
+    gParticle = addCurves(getParticlePlot(rearranged, rearrangedLines, adjustedDF),
+                          adjustedDF)
+    gParticleStack = getParticlePlotStack(getParticlePlot(rearranged, rearrangedLines, adjustedDF),
+                                          adjustedDF)
     gArrows = sortArrowPlots(adjustedDF)
     # stop()
     return(c(
       gArrows,
       list(
         gParticle = gParticle,
+        gParticleStack = gParticleStack,
         bamAll = bamAll,
         adjustedDF = adjustedDF
       )
@@ -342,27 +462,32 @@ processRegion <-
 
 savePlot <- function(l,
                      filename,
+                     createIndividualPlots = TRUE,
                      width = 10,
                      singleheight =  5,
-                     comboheight = 8,
+                     comboheight = 5,
                      dpi = "retina") {
+  
   # ggsave("arrange2x2.pdf",,
   #        device = "pdf")
-  invisible(mapply(
-    ggsave,
-    file = paste0(
-      tools::file_path_sans_ext(filename),
-      ".",
-      names(l),
-      ".",
-      tools::file_ext(filename)
-    ),
-    plot = l,
-    width = width,
-    height = singleheight,
-    dpi = dpi
-  ))
   
+  if(createIndividualPlots) {
+    invisible(mapply(
+      ggsave,
+      file = paste0(
+        tools::file_path_sans_ext(filename),
+        ".",
+        names(l),
+        ".",
+        tools::file_ext(filename)
+      ),
+      plot = l,
+      width = width,
+      height = singleheight,
+      dpi = dpi
+    ))
+  }
+    
   ggsave(
     filename = filename,
     marrangeGrob(

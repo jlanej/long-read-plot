@@ -13,12 +13,13 @@ option_list = list(
     help = "bam file to plot",
     metavar = "file"
   ),
+  # TODO - this is expanded to multiple plots
   make_option(
     c("-o", "--output"),
     type = "character",
     default = paste0(
       this.dir(),
-      "/examples/output/NA19240_2020_merged.ccs.hg38.aligned.chr17_10958130_11017414.pdf"
+      "/examples/output/NA19240_2020_merged.ccs.hg38.aligned.chr17_10958130_11017414.png"
     ),
     help = "output image file",
     metavar = "file"
@@ -52,11 +53,13 @@ processed = processRegion(opt$bam, opt$region)
 # stop()
 savePlot(
   list(
+    particleStack = processed$gParticleStack,
     particle = processed$gParticle,
     arrowSortStart = processed$gArrowStart,
     arrowSortId = processed$gArrowReadID
   ),
-  opt$output
+  opt$output,
+  createIndividualPlots = opt$debug
 )
 
 if (opt$debug) {
