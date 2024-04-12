@@ -226,7 +226,7 @@ referenceSpaceStackInt = 45
 
 # TODO, add per read alignments on statcked portion, y-axis =readID
 getParticlePlotStack <- function(gParticle,
-                                 adjustedDF, alphaRibbons = 1) {
+                                 adjustedDF, alphaRibbons = .5) {
   stackedRead = getRearrangedDFStackRead(adjustedDF)
   stackedRef = getRearrangedDFStackRef(adjustedDF)
   g = gParticle + geom_polygon(
@@ -237,7 +237,7 @@ getParticlePlotStack <- function(gParticle,
       group = qname,
       fill = alignment_number
     ),
-    alpha = alphaRibbons
+    alpha = 1
   )
   g = g + geom_polygon(
     data = stackedRef,
