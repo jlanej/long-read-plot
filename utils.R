@@ -3,6 +3,7 @@ require(Rsamtools)
 require(ggplot2)
 require(dplyr)
 require(gridExtra)
+require(SamSeq)
 
 .unlist <- function (x)
 {
@@ -63,6 +64,12 @@ addClipCounts <- function(df) {
       df[i, ]$RightClipCount = sLens[[1]][[length(sOps[[1]])]]
     }
   }
+  df$sortClipCount = df$LeftClipCount
+  return(df)
+}
+
+getAlignmentStrands <- function(df) {
+  # df$alignmentStrand =  flag = samFlags(df[i,]$V2) ifelse(df$flag %in% c("0", "16"), "+", "-")
   return(df)
 }
 
@@ -77,8 +84,8 @@ getAdjustedDF <- function(df) {
   for (qname in unique_qnames) {
     dfSubset = df[df$qname == qname, ]
     if (nrow(dfSubset) > 1) {
-      minSoftClip = min(dfSubset$LeftClipCount)
-      minimumPosition = min(dfSubset[which(dfSubset$LeftClipCount == minSoftClip),]$pos)
+      minSoftClip = min(dfSubset$sortClipCount)
+      minimumPosition = min(dfSubset[which(dfSubset$sortClipCount == minSoftClip),]$pos)
       
       for (i in 1:nrow(dfSubset)) {
         sLens = explodeCigarOpLengths(dfSubset[i,]$cigar)
@@ -97,7 +104,8 @@ getAdjustedDF <- function(df) {
       }
     }
   }
-  adjustedDF = adjustedDF[order(adjustedDF$LeftClipCount), ]
+  
+  adjustedDF = adjustedDF[order(adjustedDF$sortClipCount), ]
   adjustedDF$uniqueQname = make_unique(adjustedDF$qname, sep = "_aligment_#")
   adjustedDF$uniqueQname = ifelse(
     grepl("_aligment", adjustedDF$uniqueQname),
@@ -116,6 +124,8 @@ getAdjustedDF <- function(df) {
                                       adjustedDF$qname_index,
                                       "_alignment_",
                                       adjustedDF$alignment_number)
+  # if the strand is negative, then the start and end are reversed
+  # adjustedDF$adjustedPos = ifelse(adjustedDF$strand == "-", adjustedDF$adjustedPosEnd, adjustedDF$adjustedPos)
   
   
   return(list(adjustedDF = adjustedDF, df = df))
