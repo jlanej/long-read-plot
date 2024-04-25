@@ -127,6 +127,7 @@ getAdjustedDF <- function(df) {
           dfSubset[i, ]$adjustedPos = minimumPosition + sLens[[1]][[1]]
           if (dfSubset[i, ]$pos == minimumPosition) {
             # TODO incorporate?
+            
             dfSubset[i, ]$adjustedPos = minimumPosition
           }
           dfSubset[i, ]$adjustedPosEnd = dfSubset[i, ]$adjustedPos + dfSubset[i, ]$cigarWidthAlongReferenceSpace
