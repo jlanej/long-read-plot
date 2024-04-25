@@ -33,6 +33,16 @@ loadBam <- function(bamFile, param) {
 }
 
 
+reverseCigar <- function(cigars){
+  wdths <- explodeCigarOpLengths(cigars)
+  ops <- explodeCigarOps(cigars)
+  temp <- rev(relist(rev(paste0(unlist(wdths), unlist(ops))), rev(wdths)))
+  result <- as.character(Map(paste, temp, collapse = ""))
+  print(result)
+  return(result)
+}
+
+
 parseAlignments <- function(bamFile, region) {
   which <-
     GRanges(seqnames  = region[1],
@@ -43,12 +53,30 @@ parseAlignments <- function(bamFile, region) {
   bamAll$cigarWidthAlongReferenceSpace = cigarWidthAlongReferenceSpace(bamAll$cigar)
   bamAll$cigarWidthAlongQuerySpaceAfterSoftClipping = cigarWidthAlongQuerySpace(bamAll$cigar, after.soft.clipping = TRUE)
   bamAll$end = bamAll$pos + bamAll$cigarWidthAlongReferenceSpace
+  
+  bamAll$ReverseStrand = getReverseStrandStatus(bamAll$flag)
+  bamAll <-
+    bamAll %>% group_by(qname) %>% mutate(containsBothStrands = any(ReverseStrand) &
+                                            any(!ReverseStrand))
+  # reverse the cigar string for reverse strand alignments
+  # bamAll$cigar = ifelse(
+  #   bamAll$ReverseStrand &
+  #     bamAll$containsBothStrands,
+  #   reverseCigar(bamAll$cigar),
+  #   bamAll$cigar
+  # )
   bamAll = addClipCounts(df = bamAll)
+  
+  # stop("WIP")
+  
   bamAll <-
     bamAll %>% group_by(qname) %>% mutate(numAlignmentsForThisReadID = n())
+  bamAll$sortClipCount = bamAll$LeftClipCount
   
+  # for reads that contain both strands, we want to sort by the alignment with the least clipping
   return(bamAll)
 }
+
 
 addClipCounts <- function(df) {
   df$LeftClipCount = 0
@@ -64,13 +92,16 @@ addClipCounts <- function(df) {
       df[i, ]$RightClipCount = sLens[[1]][[length(sOps[[1]])]]
     }
   }
-  df$sortClipCount = df$LeftClipCount
+  df$minClipping = pmin(df$LeftClipCount, df$RightClipCount)
   return(df)
 }
 
-getAlignmentStrands <- function(df) {
-  # df$alignmentStrand =  flag = samFlags(df[i,]$V2) ifelse(df$flag %in% c("0", "16"), "+", "-")
-  return(df)
+
+getReverseStrandStatus <- function(flags) {
+  return(as.logical(unlist(
+    lapply(as.numeric(flags), function(x)
+      samFlags(x)["READ_REVERSE_STRAND"])
+  )))
 }
 
 # TODO make more R-like
@@ -82,30 +113,35 @@ getAdjustedDF <- function(df) {
   
   
   for (qname in unique_qnames) {
-    dfSubset = df[df$qname == qname, ]
+    dfSubset = df[df$qname == qname,]
     if (nrow(dfSubset) > 1) {
       minSoftClip = min(dfSubset$sortClipCount)
-      minimumPosition = min(dfSubset[which(dfSubset$sortClipCount == minSoftClip),]$pos)
+      minimumPosition = min(dfSubset[which(dfSubset$sortClipCount == minSoftClip), ]$pos)
       
       for (i in 1:nrow(dfSubset)) {
-        sLens = explodeCigarOpLengths(dfSubset[i,]$cigar)
-        sOps = explodeCigarOps(dfSubset[i,]$cigar)
+        sLens = explodeCigarOpLengths(dfSubset[i, ]$cigar)
+        sOps = explodeCigarOps(dfSubset[i, ]$cigar)
         hasLeftSoft = FALSE
+        # stop("TODO: fix base off sortclipcount")
         if (sOps[[1]][[1]] == "S" || sOps[[1]][[1]] == "H") {
-          dfSubset[i,]$adjustedPos = minimumPosition + sLens[[1]][[1]]
-          dfSubset[i,]$adjustedPosEnd = dfSubset[i,]$adjustedPos + dfSubset[i,]$cigarWidthAlongReferenceSpace
+          dfSubset[i, ]$adjustedPos = minimumPosition + sLens[[1]][[1]]
+          if (dfSubset[i, ]$pos == minimumPosition) {
+            # TODO incorporate?
+            dfSubset[i, ]$adjustedPos = minimumPosition
+          }
+          dfSubset[i, ]$adjustedPosEnd = dfSubset[i, ]$adjustedPos + dfSubset[i, ]$cigarWidthAlongReferenceSpace
           hasLeftSoft = TRUE
         }
         if (!hasLeftSoft) {
-          dfSubset[i,]$adjustedPos = dfSubset[i,]$pos
-          dfSubset[i,]$adjustedPosEnd = dfSubset[i,]$end
+          dfSubset[i, ]$adjustedPos = dfSubset[i, ]$pos
+          dfSubset[i, ]$adjustedPosEnd = dfSubset[i, ]$end
         }
-        adjustedDF = rbind(adjustedDF, dfSubset[i,])
+        adjustedDF = rbind(adjustedDF, dfSubset[i, ])
       }
     }
   }
   
-  adjustedDF = adjustedDF[order(adjustedDF$sortClipCount), ]
+  adjustedDF = adjustedDF[order(adjustedDF$sortClipCount),]
   adjustedDF$uniqueQname = make_unique(adjustedDF$qname, sep = "_aligment_#")
   adjustedDF$uniqueQname = ifelse(
     grepl("_aligment", adjustedDF$uniqueQname),
@@ -116,7 +152,7 @@ getAdjustedDF <- function(df) {
   adjustedDF$line_type = "alignment-start-to-end"
   
   # create and incex for each unique qname
-  sortedDF = adjustedDF[order(adjustedDF$pos),]
+  sortedDF = adjustedDF[order(adjustedDF$pos), ]
   indexDF = data.frame(qname = unique(sortedDF$qname),
                        qname_index = 1:length(unique(sortedDF$qname)))
   adjustedDF = inner_join(adjustedDF, indexDF, by = c("qname" = "qname"))
@@ -371,9 +407,9 @@ getArrowPlot <-
            pointsize,
            yaxisFontSize) {
     adjustedDF$sameStart = abs(adjustedDF$adjustedPos - adjustedDF$pos) < 10
-    g = ggplot(adjustedDF[which(!adjustedDF$sameStart),])
+    g = ggplot(adjustedDF[which(!adjustedDF$sameStart), ])
     geom_point(
-      data = adjustedDF[which(adjustedDF$sameStart), ],
+      data = adjustedDF[which(adjustedDF$sameStart),],
       aes(x = adjustedPos, y = anonymousReadID),
       color = "black",
       size = pointsize
@@ -434,8 +470,8 @@ sortArrowPlots <- function(adjustedDF,
     pointsize = pointsize,
     yaxisFontSize = yaxisFontSize
   )
-  gArrowStart = base + scale_y_discrete(limits = rev(adjustedDF[order(adjustedDF$qname_index), ]$anonymousReadID))
-  gArrowReadID = base + scale_y_discrete(limits = rev(adjustedDF[order(adjustedDF$pos),]$anonymousReadID))
+  gArrowStart = base + scale_y_discrete(limits = rev(adjustedDF[order(adjustedDF$qname_index),]$anonymousReadID))
+  gArrowReadID = base + scale_y_discrete(limits = rev(adjustedDF[order(adjustedDF$pos), ]$anonymousReadID))
   results = list(gArrowStart = gArrowStart, gArrowReadID = gArrowReadID)
   return(results)
 }
@@ -447,7 +483,7 @@ processRegion <-
            minAlignments = 2) {
     region = strsplit(ucscRegion, ":|-")[[1]]
     bamAll = parseAlignments(bamFile, region)
-    bamAll = bamAll[which(bamAll$numAlignmentsForThisReadID >= minAlignments), ]
+    bamAll = bamAll[which(bamAll$numAlignmentsForThisReadID >= minAlignments),]
     adjusted = getAdjustedDF(df = bamAll)
     adjustedDF = adjusted$adjustedDF
     bamAll = adjusted$df
@@ -477,11 +513,10 @@ savePlot <- function(l,
                      singleheight =  5,
                      comboheight = 5,
                      dpi = "retina") {
-  
   # ggsave("arrange2x2.pdf",,
   #        device = "pdf")
   
-  if(createIndividualPlots) {
+  if (createIndividualPlots) {
     invisible(mapply(
       ggsave,
       file = paste0(
@@ -497,7 +532,7 @@ savePlot <- function(l,
       dpi = dpi
     ))
   }
-    
+  
   ggsave(
     filename = filename,
     marrangeGrob(

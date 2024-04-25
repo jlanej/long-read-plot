@@ -40,43 +40,6 @@ option_list = list(
   )
 )
 
-
-
-
-option_list = list(
-  make_option(
-    c("-i", "--bam"),
-    type = "character",
-    default = paste0(
-      "/Volumes/Beta2/NGS/1000G/longread/for_john/chr20_complex/PAK95307.trimmed.bam"
-    ),
-    help = "bam file to plot",
-    metavar = "file"
-  ),
-  # TODO - this is expanded to multiple plots
-  make_option(
-    c("-o", "--output"),
-    type = "character",
-    default = paste0("/Volumes/Beta2/NGS/1000G/longread/for_john/test.png"),
-    help = "output image file",
-    metavar = "file"
-  ),
-  make_option(
-    c("-r", "--region"),
-    type = "character",
-    default = "chr20:475590-520000",
-    help = "region to plot in ucsc format",
-    metavar = "region"
-  ),
-  make_option(
-    c("-d", "--debug"),
-    action = "store_true",
-    default = FALSE,
-    help = "debug mode, creates a tsv file of the alignments",
-    dest = "debug"
-  )
-)
-
 opt_parser = OptionParser(option_list = option_list)
 opt = parse_args(opt_parser)
 
