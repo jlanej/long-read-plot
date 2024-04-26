@@ -43,11 +43,15 @@ reverseCigar <- function(cigars){
 }
 
 
-parseAlignments <- function(bamFile, region) {
-  which <-
-    GRanges(seqnames  = region[1],
-            ranges = IRanges(as.integer(region[2]), as.integer(region[3])))
-  bamAll = loadBam(bamFile, param = ScanBamParam(what = scanBamWhat(), which = which))
+parseAlignments <- function(bamFile, region=NULL) {
+  if (is.null(region)) {
+    bamAll = loadBam(bamFile, param = ScanBamParam(what = scanBamWhat()))
+  } else{
+    which <-
+      GRanges(seqnames  = region[1],
+              ranges = IRanges(as.integer(region[2]), as.integer(region[3])))
+    bamAll = loadBam(bamFile, param = ScanBamParam(what = scanBamWhat(), which = which))
+  }
   bamAll$flag = as.character(bamAll$flag)
   bamAll$sequenceLength = nchar(bamAll$seq)
   bamAll$cigarWidthAlongReferenceSpace = cigarWidthAlongReferenceSpace(bamAll$cigar)
