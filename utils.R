@@ -33,15 +33,22 @@ loadBam <- function(bamFile, param) {
 }
 
 
-parseAlignments <- function(bamFile, region = NULL) {
+parseAlignments <- function(bamFile,
+                            region = NULL,
+                            tag = "SA") {
   # TODO incorporate
   if (is.null(region)) {
-    bamAll = loadBam(bamFile, param = ScanBamParam(what = scanBamWhat()))
+    bamAll = loadBam(bamFile, param = ScanBamParam(what = scanBamWhat(), tag =
+                                                     tag))
   } else{
     which <-
       GRanges(seqnames  = region[1],
               ranges = IRanges(as.integer(region[2]), as.integer(region[3])))
-    bamAll = loadBam(bamFile, param = ScanBamParam(what = scanBamWhat(), which = which))
+    bamAll = loadBam(bamFile, param = ScanBamParam(
+      what = scanBamWhat(),
+      which = which,
+      tag = tag
+    ))
   }
   bamAll$flag = as.character(bamAll$flag)
   bamAll$sequenceLength = nchar(bamAll$seq)
@@ -64,14 +71,14 @@ addClipCounts <- function(df) {
   df$LeftClipCount = 0
   df$RightClipCount = 0
   for (i in 1:nrow(df)) {
-    sLens = explodeCigarOpLengths(df[i,]$cigar)
-    sOps = explodeCigarOps(df[i,]$cigar)
+    sLens = explodeCigarOpLengths(df[i, ]$cigar)
+    sOps = explodeCigarOps(df[i, ]$cigar)
     if (sOps[[1]][[1]] == "S" | sOps[[1]][[1]] == "H") {
-      df[i,]$LeftClipCount = sLens[[1]][[1]]
+      df[i, ]$LeftClipCount = sLens[[1]][[1]]
     }
     if (sOps[[1]][[length(sOps[[1]])]] == "S" ||
         sOps[[1]][[length(sOps[[1]])]] == "H") {
-      df[i,]$RightClipCount = sLens[[1]][[length(sOps[[1]])]]
+      df[i, ]$RightClipCount = sLens[[1]][[length(sOps[[1]])]]
     }
   }
   df$minClipping = pmin(df$LeftClipCount, df$RightClipCount)
@@ -89,7 +96,7 @@ getReverseStrandStatus <- function(flags) {
 assignAlignmentIndex <- function(df) {
   qnames = unique(df$qname)
   for (qname in qnames) {
-    dfSubset = df[df$qname == qname, ]
+    dfSubset = df[df$qname == qname,]
     
   }
 }
@@ -102,35 +109,35 @@ getAdjustedDF <- function(df) {
   
   
   for (qname in unique_qnames) {
-    dfSubset = df[df$qname == qname, ]
+    dfSubset = df[df$qname == qname,]
     if (nrow(dfSubset) > 1) {
       minSoftClip = min(dfSubset$sortClipCount)
-      minimumPosition = min(dfSubset[which(dfSubset$sortClipCount == minSoftClip),]$pos)
+      minimumPosition = min(dfSubset[which(dfSubset$sortClipCount == minSoftClip), ]$pos)
       
       for (i in 1:nrow(dfSubset)) {
-        sLens = explodeCigarOpLengths(dfSubset[i,]$cigar)
-        sOps = explodeCigarOps(dfSubset[i,]$cigar)
+        sLens = explodeCigarOpLengths(dfSubset[i, ]$cigar)
+        sOps = explodeCigarOps(dfSubset[i, ]$cigar)
         hasLeftSoft = FALSE
         # stop("TODO: fix base off sortclipcount")
         if (sOps[[1]][[1]] == "S" || sOps[[1]][[1]] == "H") {
-          dfSubset[i,]$adjustedPos = minimumPosition + sLens[[1]][[1]]
-          if (dfSubset[i,]$pos == minimumPosition) {
+          dfSubset[i, ]$adjustedPos = minimumPosition + sLens[[1]][[1]]
+          if (dfSubset[i, ]$pos == minimumPosition) {
             # TODO incorporate
-            dfSubset[i,]$adjustedPos = minimumPosition
+            dfSubset[i, ]$adjustedPos = minimumPosition
           }
-          dfSubset[i,]$adjustedPosEnd = dfSubset[i,]$adjustedPos + dfSubset[i,]$cigarWidthAlongReferenceSpace
+          dfSubset[i, ]$adjustedPosEnd = dfSubset[i, ]$adjustedPos + dfSubset[i, ]$cigarWidthAlongReferenceSpace
           hasLeftSoft = TRUE
         }
         if (!hasLeftSoft) {
-          dfSubset[i,]$adjustedPos = dfSubset[i,]$pos
-          dfSubset[i,]$adjustedPosEnd = dfSubset[i,]$end
+          dfSubset[i, ]$adjustedPos = dfSubset[i, ]$pos
+          dfSubset[i, ]$adjustedPosEnd = dfSubset[i, ]$end
         }
-        adjustedDF = rbind(adjustedDF, dfSubset[i,])
+        adjustedDF = rbind(adjustedDF, dfSubset[i, ])
       }
     }
   }
   
-  adjustedDF = adjustedDF[order(adjustedDF$sortClipCount), ]
+  adjustedDF = adjustedDF[order(adjustedDF$sortClipCount),]
   adjustedDF$uniqueQname = make_unique(adjustedDF$qname, sep = "_aligment_#")
   adjustedDF$uniqueQname = ifelse(
     grepl("_aligment", adjustedDF$uniqueQname),
@@ -141,7 +148,7 @@ getAdjustedDF <- function(df) {
   adjustedDF$line_type = "alignment-start-to-end"
   
   # create and incex for each unique qname
-  sortedDF = adjustedDF[order(adjustedDF$pos),]
+  sortedDF = adjustedDF[order(adjustedDF$pos), ]
   indexDF = data.frame(qname = unique(sortedDF$qname),
                        qname_index = 1:length(unique(sortedDF$qname)))
   adjustedDF = inner_join(adjustedDF, indexDF, by = c("qname" = "qname"))
@@ -393,9 +400,9 @@ getArrowPlot <-
            pointsize,
            yaxisFontSize) {
     adjustedDF$sameStart = abs(adjustedDF$adjustedPos - adjustedDF$pos) < 10
-    g = ggplot(adjustedDF[which(!adjustedDF$sameStart),])
+    g = ggplot(adjustedDF[which(!adjustedDF$sameStart), ])
     geom_point(
-      data = adjustedDF[which(adjustedDF$sameStart), ],
+      data = adjustedDF[which(adjustedDF$sameStart),],
       aes(x = adjustedPos, y = anonymousReadID),
       color = "black",
       size = pointsize
@@ -456,8 +463,8 @@ sortArrowPlots <- function(adjustedDF,
     pointsize = pointsize,
     yaxisFontSize = yaxisFontSize
   )
-  gArrowStart = base + scale_y_discrete(limits = rev(adjustedDF[order(adjustedDF$qname_index), ]$anonymousReadID))
-  gArrowReadID = base + scale_y_discrete(limits = rev(adjustedDF[order(adjustedDF$pos),]$anonymousReadID))
+  gArrowStart = base + scale_y_discrete(limits = rev(adjustedDF[order(adjustedDF$qname_index),]$anonymousReadID))
+  gArrowReadID = base + scale_y_discrete(limits = rev(adjustedDF[order(adjustedDF$pos), ]$anonymousReadID))
   results = list(gArrowStart = gArrowStart, gArrowReadID = gArrowReadID)
   return(results)
 }
@@ -469,7 +476,7 @@ processRegion <-
            minAlignments = 2) {
     region = strsplit(ucscRegion, ":|-")[[1]]
     bamAll = parseAlignments(bamFile, region)
-    bamAll = bamAll[which(bamAll$numAlignmentsForThisReadID >= minAlignments), ]
+    bamAll = bamAll[which(bamAll$numAlignmentsForThisReadID >= minAlignments),]
     adjusted = getAdjustedDF(df = bamAll)
     adjustedDF = adjusted$adjustedDF
     bamAll = adjusted$df
@@ -499,9 +506,6 @@ savePlot <- function(l,
                      singleheight =  5,
                      comboheight = 5,
                      dpi = "retina") {
-  # ggsave("arrange2x2.pdf",,
-  #        device = "pdf")
-  
   if (createIndividualPlots) {
     invisible(mapply(
       ggsave,
@@ -518,7 +522,6 @@ savePlot <- function(l,
       dpi = dpi
     ))
   }
-  
   ggsave(
     filename = filename,
     marrangeGrob(
