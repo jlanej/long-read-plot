@@ -44,6 +44,7 @@ reverseCigar <- function(cigars){
 
 
 parseAlignments <- function(bamFile, region=NULL) {
+  # TODO incorporate
   if (is.null(region)) {
     bamAll = loadBam(bamFile, param = ScanBamParam(what = scanBamWhat()))
   } else{
@@ -108,7 +109,14 @@ getReverseStrandStatus <- function(flags) {
   )))
 }
 
-# TODO make more R-like
+assignAlignmentIndex <- function(df) {
+  qnames=unique(df$qname)
+  for (qname in qnames) {
+    dfSubset = df[df$qname == qname,]
+   
+  }
+}
+
 getAdjustedDF <- function(df) {
   unique_qnames = unique(df$qname)
   adjustedDF = data.frame()
@@ -130,8 +138,7 @@ getAdjustedDF <- function(df) {
         if (sOps[[1]][[1]] == "S" || sOps[[1]][[1]] == "H") {
           dfSubset[i, ]$adjustedPos = minimumPosition + sLens[[1]][[1]]
           if (dfSubset[i, ]$pos == minimumPosition) {
-            # TODO incorporate?
-            
+            # TODO incorporate
             dfSubset[i, ]$adjustedPos = minimumPosition
           }
           dfSubset[i, ]$adjustedPosEnd = dfSubset[i, ]$adjustedPos + dfSubset[i, ]$cigarWidthAlongReferenceSpace
