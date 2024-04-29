@@ -153,10 +153,7 @@ getAdjustedDF <- function(df) {
                                       adjustedDF$qname_index,
                                       "_alignment_",
                                       adjustedDF$alignment_number)
-  # if the strand is negative, then the start and end are reversed
-  # adjustedDF$adjustedPos = ifelse(adjustedDF$strand == "-", adjustedDF$adjustedPosEnd, adjustedDF$adjustedPos)
-  
-  
+
   return(list(adjustedDF = adjustedDF, df = df))
 }
 
