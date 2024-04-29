@@ -49,10 +49,6 @@ parseAlignments <- function(bamFile, region = NULL) {
   bamAll$cigarWidthAlongQuerySpaceAfterSoftClipping = cigarWidthAlongQuerySpace(bamAll$cigar, after.soft.clipping = TRUE)
   bamAll$end = bamAll$pos + bamAll$cigarWidthAlongReferenceSpace
   
-  bamAll$ReverseStrand = getReverseStrandStatus(bamAll$flag)
-  bamAll <-
-    bamAll %>% group_by(qname) %>% mutate(containsBothStrands = any(ReverseStrand) &
-                                            any(!ReverseStrand))
   bamAll = addClipCounts(df = bamAll)
   
   bamAll <-
