@@ -33,16 +33,6 @@ loadBam <- function(bamFile, param) {
 }
 
 
-reverseCigar <- function(cigars){
-  wdths <- explodeCigarOpLengths(cigars)
-  ops <- explodeCigarOps(cigars)
-  temp <- rev(relist(rev(paste0(unlist(wdths), unlist(ops))), rev(wdths)))
-  result <- as.character(Map(paste, temp, collapse = ""))
-  print(result)
-  return(result)
-}
-
-
 parseAlignments <- function(bamFile, region=NULL) {
   # TODO incorporate
   if (is.null(region)) {
@@ -63,16 +53,7 @@ parseAlignments <- function(bamFile, region=NULL) {
   bamAll <-
     bamAll %>% group_by(qname) %>% mutate(containsBothStrands = any(ReverseStrand) &
                                             any(!ReverseStrand))
-  # reverse the cigar string for reverse strand alignments
-  # bamAll$cigar = ifelse(
-  #   bamAll$ReverseStrand &
-  #     bamAll$containsBothStrands,
-  #   reverseCigar(bamAll$cigar),
-  #   bamAll$cigar
-  # )
   bamAll = addClipCounts(df = bamAll)
-  
-  # stop("WIP")
   
   bamAll <-
     bamAll %>% group_by(qname) %>% mutate(numAlignmentsForThisReadID = n())
