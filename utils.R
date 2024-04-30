@@ -175,15 +175,9 @@ getAlignmentIndices <- function(df) {
 
 getAdjustedDF <- function(df, chr, start, end) {
   adjustedDF = data.frame()
-  df$adjustedPos = NA
-  df$adjustedPosEnd = NA
-  print(df)
-  
+
   df = getAlignmentIndices(df = df)
-  print(df)
-  # stop()
-  # print(colnames(df))
-  # print(df)
+
   # [1] "alignmentNumber"       "group"                 "group_name"            "start"                 "end"
   # [6] "width"                 "op"                    "strand"                "qname"                 "referenceSpan"
   # [11] "readSpan"              "chr"                   "startAlignment"        "endAlignment"          "chr_strand"
@@ -200,6 +194,11 @@ getAdjustedDF <- function(df, chr, start, end) {
     "chr_strand",
     "index_alignmentNumber"
   )])
+  df$pos=df$startAlignment
+  df$end=df$endAlignment
+  df$adjustedPos = NA
+  df$adjustedPosEnd = NA
+  df$cigarWidthAlongReferenceSpace = cigarWidthAlongReferenceSpace(df$cigar)
   # determine which of the aligments overlap the region of interest
   
   hits = findOverlaps(
@@ -218,18 +217,24 @@ getAdjustedDF <- function(df, chr, start, end) {
   )
   df$overlap = FALSE
   df$overlap[queryHits(hits)] = TRUE
-  # print(df)
-  
-  # stop()
+  df=df[which(df$overlap),]
   
   unique_qnames = unique(df$qname)
+  
+  Try to incorporate all alignemnts 
   
   for (qname in unique_qnames) {
     dfSubset = df[df$qname == qname,]
     if (nrow(dfSubset) > 1) {
       minIndex = min(dfSubset$index_alignmentNumber)
-      minimumPosition = min(dfSubset[which(dfSubset$index_alignmentNumber == minIndex), ]$pos)
-      
+      initialAlignment=dfSubset[which(dfSubset$index_alignmentNumber == minIndex), ]
+      if (initialAlignment$strand == "+") {
+        minimumPosition = min(dfSubset[which(dfSubset$index_alignmentNumber == minIndex), ]$startAlignment)
+      } else {
+        minIndex = max(dfSubset$index_alignmentNumber)
+        minimumPosition = max(dfSubset[which(dfSubset$index_alignmentNumber == minIndex), ]$startAlignment)
+      }
+
       for (i in 1:nrow(dfSubset)) {
         sLens = explodeCigarOpLengths(dfSubset[i, ]$cigar)
         sOps = explodeCigarOps(dfSubset[i, ]$cigar)
@@ -237,7 +242,7 @@ getAdjustedDF <- function(df, chr, start, end) {
         # stop("TODO: fix base off sortclipcount")
         if (sOps[[1]][[1]] == "S" || sOps[[1]][[1]] == "H") {
           dfSubset[i, ]$adjustedPos = minimumPosition + sLens[[1]][[1]]
-          if (dfSubset[i, ]$pos == minimumPosition) {
+          if (dfSubset[i, ]$startAlignment == minimumPosition) {
             # TODO incorporate
             dfSubset[i, ]$adjustedPos = minimumPosition
           }
@@ -245,18 +250,15 @@ getAdjustedDF <- function(df, chr, start, end) {
           hasLeftSoft = TRUE
         }
         if (!hasLeftSoft) {
-          dfSubset[i, ]$adjustedPos = dfSubset[i, ]$pos
-          dfSubset[i, ]$adjustedPosEnd = dfSubset[i, ]$end
+          dfSubset[i, ]$adjustedPos = dfSubset[i, ]$startAlignment
+          dfSubset[i, ]$adjustedPosEnd = dfSubset[i, ]$endAlignment
         }
         adjustedDF = rbind(adjustedDF, dfSubset[i, ])
       }
     }
   }
-  print(colnames(adjustedDF))
-  # stop()
-  adjustedDF = adjustedDF[order(adjustedDF$sortClipCount),]
-  # indices=getAlignmentIndices(df = adjustedDF)
-  # stop()
+  adjustedDF = adjustedDF[order(adjustedDF$index_alignmentNumber),]
+
   adjustedDF$uniqueQname = make_unique(adjustedDF$qname, sep = "_aligment_#")
   adjustedDF$uniqueQname = ifelse(
     grepl("_aligment", adjustedDF$uniqueQname),
@@ -267,7 +269,7 @@ getAdjustedDF <- function(df, chr, start, end) {
   adjustedDF$line_type = "alignment-start-to-end"
   
   # create and incex for each unique qname
-  sortedDF = adjustedDF[order(adjustedDF$pos), ]
+  sortedDF = adjustedDF[order(adjustedDF$startAlignment), ]
   indexDF = data.frame(qname = unique(sortedDF$qname),
                        qname_index = 1:length(unique(sortedDF$qname)))
   adjustedDF = inner_join(adjustedDF, indexDF, by = c("qname" = "qname"))
