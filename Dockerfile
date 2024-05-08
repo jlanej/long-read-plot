@@ -11,7 +11,7 @@ RUN wget -qO- https://cloud.r-project.org/bin/linux/ubuntu/marutter_pubkey.asc |
 RUN echo "deb [signed-by=/usr/share/keyrings/r-project.gpg] https://cloud.r-project.org/bin/linux/ubuntu jammy-cran40/" | tee -a /etc/apt/sources.list.d/r-project.list
 
 RUN apt-get update && apt-get -y upgrade && \
-apt-get install -y libcurl4-openssl-dev git r-base r-base-dev && \
+apt-get install -y libcurl4-openssl-dev libssl-dev git r-base r-base-dev && \
 apt-get clean && apt-get purge && \
 rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
