@@ -3,6 +3,7 @@ require(Rsamtools)
 require(ggplot2)
 require(dplyr)
 require(gridExtra)
+require(SamSeq)
 
 .unlist <- function (x)
 {
@@ -32,22 +33,39 @@ loadBam <- function(bamFile, param) {
 }
 
 
-parseAlignments <- function(bamFile, region) {
-  which <-
-    GRanges(seqnames  = region[1],
-            ranges = IRanges(as.integer(region[2]), as.integer(region[3])))
-  bamAll = loadBam(bamFile, param = ScanBamParam(what = scanBamWhat(), which = which))
+parseAlignments <- function(bamFile,
+                            region = NULL,
+                            tag = "SA") {
+  # TODO incorporate
+  if (is.null(region)) {
+    bamAll = loadBam(bamFile, param = ScanBamParam(what = scanBamWhat(), tag =
+                                                     tag))
+  } else{
+    which <-
+      GRanges(seqnames  = region[1],
+              ranges = IRanges(as.integer(region[2]), as.integer(region[3])))
+    bamAll = loadBam(bamFile, param = ScanBamParam(
+      what = scanBamWhat(),
+      which = which,
+      tag = tag
+    ))
+  }
   bamAll$flag = as.character(bamAll$flag)
   bamAll$sequenceLength = nchar(bamAll$seq)
   bamAll$cigarWidthAlongReferenceSpace = cigarWidthAlongReferenceSpace(bamAll$cigar)
   bamAll$cigarWidthAlongQuerySpaceAfterSoftClipping = cigarWidthAlongQuerySpace(bamAll$cigar, after.soft.clipping = TRUE)
   bamAll$end = bamAll$pos + bamAll$cigarWidthAlongReferenceSpace
+  
   bamAll = addClipCounts(df = bamAll)
+  
   bamAll <-
     bamAll %>% group_by(qname) %>% mutate(numAlignmentsForThisReadID = n())
+  bamAll$sortClipCount = bamAll$LeftClipCount
   
+  # for reads that contain both strands, we want to sort by the alignment with the least clipping
   return(bamAll)
 }
+
 
 addClipCounts <- function(df) {
   df$LeftClipCount = 0
@@ -63,41 +81,204 @@ addClipCounts <- function(df) {
       df[i, ]$RightClipCount = sLens[[1]][[length(sOps[[1]])]]
     }
   }
+  df$minClipping = pmin(df$LeftClipCount, df$RightClipCount)
   return(df)
 }
 
-# TODO make more R-like
-getAdjustedDF <- function(df) {
-  unique_qnames = unique(df$qname)
+
+getReverseStrandStatus <- function(flags) {
+  return(as.logical(unlist(
+    lapply(as.numeric(flags), function(x)
+      samFlags(x)["READ_REVERSE_STRAND"])
+  )))
+}
+
+parseAlignmentsTodf = function(alignmentString) {
+  # example string "chr20,486563,-,4096S1675M85D6048S,60,205"
+  # split the string by comma
+  char = unlist(strsplit(alignmentString, ","))
+  #return a data frame
+  return(
+    data.frame(
+      rname = char[1],
+      pos = as.numeric(char[2]),
+      strand = char[3],
+      cigar = char[4],
+      mapq = as.numeric(char[5]),
+      flag = as.numeric(char[6])
+    )
+  )
+}
+getAlignmentIndices <- function(df) {
+  qnames = unique(df$qname)
+  allAlignments = data.frame()
+  for (qname in qnames) {
+    dfSubset = df[df$qname == qname, ]
+    alignmentsDf = data.frame()
+    alignments = unique(unlist(unique(strsplit(df[df$qname == qname, ]$SA, ";"))))
+    if (length(alignments) > 0 &
+        paste(alignments, collapse = "") != "NA") {
+      alignments = alignments[!is.na(alignments)]
+      alignments = lapply(alignments, parseAlignmentsTodf)
+      alignmentsDf = do.call(rbind, alignments)
+      alignmentsDf$flag=NULL
+    }
+    alignmentsDf = rbind(
+      alignmentsDf,
+      data.frame(
+        rname = dfSubset$rname,
+        pos = dfSubset$pos,
+        strand = dfSubset$strand,
+        cigar = dfSubset$cigar,
+        mapq = dfSubset$mapq
+      )
+    )
+    alignmentsDf = unique(alignmentsDf)
+    
+    alignmentsDf$qname = qname
+    readRanges = data.frame()
+    for (i in 1:nrow(alignmentsDf)) {
+      sLens = explodeCigarOpLengths(alignmentsDf[i, ]$cigar)
+      sOps = explodeCigarOps(alignmentsDf[i, ]$cigar)
+      ranges = as.data.frame(
+        cigarRangesAlongQuerySpace(alignmentsDf[i, ]$cigar, before.hard.clipping = TRUE)
+      )
+      
+      ranges$op = sOps[[1]]
+      ranges$cigar = alignmentsDf[i, ]$cigar
+      ranges$alignmentNumber = i
+      flag = alignmentsDf[i, ]$flag
+      ranges$strand = alignmentsDf[i, ]$strand
+      length = cigarWidthAlongQuerySpace(
+        alignmentsDf[i, ]$cigar,
+        after.soft.clipping = FALSE,
+        before.hard.clipping = TRUE
+      )
+      if (alignmentsDf[i, ]$strand == "-") {
+        ranges$start = abs(ranges$start - length)
+        ranges$end = abs(ranges$end - length)
+      }
+      lengthAlongRef = cigarWidthAlongReferenceSpace(alignmentsDf[i, ]$cigar)
+      ranges$qname = qname
+      ranges$referenceSpan = lengthAlongRef
+      ranges$readSpan = length
+      ranges$chr = alignmentsDf[i, ]$rname
+      ranges$startAlignment = alignmentsDf[i, ]$pos
+      ranges$endAlignment = alignmentsDf[i, ]$pos + lengthAlongRef
+      ranges$chr_strand = paste0(alignmentsDf[i, ]$rname, " ", ranges$strand)
+      ranges$ucsc = paste0(ranges$chr,
+                           ":",
+                           ranges$startAlignment,
+                           "-",
+                           ranges$endAlignment)
+      
+      readRanges = rbind(readRanges, ranges)
+    }
+    
+    readRangesNoClip = readRanges[which(!readRanges$op %in% c("H", "S")), ]
+    readRangesNoClip$minReadIndex = pmin(readRangesNoClip$start, readRangesNoClip$end)
+    # get the minimum start per alignment
+    minStart = aggregate(minReadIndex ~ alignmentNumber, readRangesNoClip, function(x)
+      min(x))
+    # assign a new index to the alignments based on the minReadIndex
+    minStart = minStart[order(minStart$minReadIndex), ]
+    minStart$index_alignmentNumber = 1:nrow(minStart)
+    readRanges = merge(readRanges, minStart, by = "alignmentNumber")
+    allAlignments = rbind(allAlignments, readRanges)
+  }
+  return(allAlignments)
+}
+
+getAdjustedDF <- function(df, chr, start, end) {
   adjustedDF = data.frame()
+  
+  df = getAlignmentIndices(df = df)
+  
+  # [1] "alignmentNumber"       "group"                 "group_name"            "start"                 "end"
+  # [6] "width"                 "op"                    "strand"                "qname"                 "referenceSpan"
+  # [11] "readSpan"              "chr"                   "startAlignment"        "endAlignment"          "chr_strand"
+  # [16] "ucsc"                  "minReadIndex"          "index_alignmentNumber
+  df = unique(df[, c(
+    "qname",
+    "cigar",
+    "alignmentNumber",
+    "strand",
+    "referenceSpan",
+    "chr",
+    "startAlignment",
+    "endAlignment",
+    "chr_strand",
+    "index_alignmentNumber"
+  )])
+  df$pos = df$startAlignment
+  df$end = df$endAlignment
   df$adjustedPos = NA
   df$adjustedPosEnd = NA
+  df$cigarWidthAlongReferenceSpace = cigarWidthAlongReferenceSpace(df$cigar)
+  # determine which of the aligments overlap the region of interest
   
+  hits = findOverlaps(
+    GRanges(
+      seqnames = Rle(df$chr),
+      ranges = IRanges(
+        start = df$startAlignment,
+        end = df$endAlignment
+      ),
+      strand = Rle(df$strand)
+    ),
+    GRanges(
+      seqnames = Rle(chr),
+      ranges = IRanges(start = start, end = end)
+    )
+  )
+  df$overlap = FALSE
+  df$overlap[queryHits(hits)] = TRUE
+  # df=df[which(df$overlap),]
+  
+  unique_qnames = unique(df$qname)
+  
+  # Try to incorporate all alignemnts
   
   for (qname in unique_qnames) {
-    dfSubset = df[df$qname == qname, ]
+    dfSubsetAll = df[df$qname == qname, ]
+    dfSubset = dfSubsetAll[dfSubsetAll$overlap, ]
+    # reverse=
     if (nrow(dfSubset) > 1) {
-      minSoftClip = min(dfSubset$LeftClipCount)
-      minimumPosition = min(dfSubset[which(dfSubset$LeftClipCount == minSoftClip),]$pos)
+      minIndex = min(dfSubset$index_alignmentNumber)
+      initialAlignment = dfSubset[which(dfSubset$index_alignmentNumber == minIndex), ]
+      if (initialAlignment$strand == "+") {
+        minimumPosition = min(dfSubset[which(dfSubset$index_alignmentNumber == minIndex), ]$startAlignment)
+      } else {
+        minIndex = max(dfSubset$index_alignmentNumber)
+        minimumPosition = max(dfSubset[which(dfSubset$index_alignmentNumber == minIndex), ]$startAlignment)
+        # next
+      }
       
       for (i in 1:nrow(dfSubset)) {
-        sLens = explodeCigarOpLengths(dfSubset[i,]$cigar)
-        sOps = explodeCigarOps(dfSubset[i,]$cigar)
+        sLens = explodeCigarOpLengths(dfSubset[i, ]$cigar)
+        sOps = explodeCigarOps(dfSubset[i, ]$cigar)
         hasLeftSoft = FALSE
+        # stop("TODO: fix base off sortclipcount")
         if (sOps[[1]][[1]] == "S" || sOps[[1]][[1]] == "H") {
-          dfSubset[i,]$adjustedPos = minimumPosition + sLens[[1]][[1]]
-          dfSubset[i,]$adjustedPosEnd = dfSubset[i,]$adjustedPos + dfSubset[i,]$cigarWidthAlongReferenceSpace
+          dfSubset[i, ]$adjustedPos = minimumPosition + sLens[[1]][[1]]
+          stop("Think about this more")
+          if (dfSubset[i, ]$startAlignment == minimumPosition) {
+            # TODO incorporate
+            dfSubset[i, ]$adjustedPos = minimumPosition
+          }
+          dfSubset[i, ]$adjustedPosEnd = dfSubset[i, ]$adjustedPos + dfSubset[i, ]$cigarWidthAlongReferenceSpace
           hasLeftSoft = TRUE
         }
         if (!hasLeftSoft) {
-          dfSubset[i,]$adjustedPos = dfSubset[i,]$pos
-          dfSubset[i,]$adjustedPosEnd = dfSubset[i,]$end
+          dfSubset[i, ]$adjustedPos = dfSubset[i, ]$startAlignment
+          dfSubset[i, ]$adjustedPosEnd = dfSubset[i, ]$endAlignment
         }
-        adjustedDF = rbind(adjustedDF, dfSubset[i,])
+        adjustedDF = rbind(adjustedDF, dfSubset[i, ])
       }
     }
   }
-  adjustedDF = adjustedDF[order(adjustedDF$LeftClipCount), ]
+  adjustedDF = adjustedDF[order(adjustedDF$index_alignmentNumber), ]
+  
   adjustedDF$uniqueQname = make_unique(adjustedDF$qname, sep = "_aligment_#")
   adjustedDF$uniqueQname = ifelse(
     grepl("_aligment", adjustedDF$uniqueQname),
@@ -108,7 +289,7 @@ getAdjustedDF <- function(df) {
   adjustedDF$line_type = "alignment-start-to-end"
   
   # create and incex for each unique qname
-  sortedDF = adjustedDF[order(adjustedDF$pos),]
+  sortedDF = adjustedDF[order(adjustedDF$startAlignment), ]
   indexDF = data.frame(qname = unique(sortedDF$qname),
                        qname_index = 1:length(unique(sortedDF$qname)))
   adjustedDF = inner_join(adjustedDF, indexDF, by = c("qname" = "qname"))
@@ -116,7 +297,6 @@ getAdjustedDF <- function(df) {
                                       adjustedDF$qname_index,
                                       "_alignment_",
                                       adjustedDF$alignment_number)
-  
   
   return(list(adjustedDF = adjustedDF, df = df))
 }
@@ -205,14 +385,10 @@ getRearrangedDFStackRef <- function(adjustedDF) {
 
 getRearrangedLines <- function(adjustedDF) {
   rearrangedLines = data.frame(
-    refpos = c(adjustedDF$pos,
-               adjustedDF$end),
-    adjustedPos = c(adjustedDF$adjustedPos,
-                    adjustedDF$adjustedPosEnd),
-    line_type = c(rep("alignment-start", nrow(adjustedDF)),
-                  rep("alignment-end", nrow(adjustedDF))),
-    qname = c(adjustedDF$uniqueQname,
-              adjustedDF$uniqueQname)
+    refpos = c(adjustedDF$pos, adjustedDF$end),
+    adjustedPos = c(adjustedDF$adjustedPos, adjustedDF$adjustedPosEnd),
+    line_type = c(rep("alignment-start", nrow(adjustedDF)), rep("alignment-end", nrow(adjustedDF))),
+    qname = c(adjustedDF$uniqueQname, adjustedDF$uniqueQname)
   )
   rearrangedLines$alignment_number = as.factor(gsub(".*_", "", rearrangedLines$qname))
   return(rearrangedLines)
@@ -225,8 +401,7 @@ referenceSpaceStackInt = 45
 
 
 # TODO, on top/bottom of stack, add particle curves
-getParticlePlotStack <- function(gParticle,
-                                 adjustedDF, alphaRibbons = .5) {
+getParticlePlotStack <- function(gParticle, adjustedDF, alphaRibbons = .5) {
   stackedRead = getRearrangedDFStackRead(adjustedDF)
   stackedRef = getRearrangedDFStackRef(adjustedDF)
   g = gParticle + geom_polygon(
@@ -250,32 +425,16 @@ getParticlePlotStack <- function(gParticle,
     ),
     alpha = alphaRibbons
   )
-  # g = g + scale_y_continuous(
-  #   breaks = c(
-  #     referenceSpaceStackInt,
-  #     referenceSpaceInt,
-  #     readSpaceInt,
-  #     readSpaceStakedInt
-  #   ),
-  #   labels = c(
-  #     "Reference Space Alignments",
-  #     "Reference Space",
-  #     "Read Space",
-  #     "Read Space Alignments"
-  #   )
-  # )
+  
   g = g + scale_y_continuous(
-    breaks = c(referenceSpaceInt,
-               readSpaceInt),
-    labels = c("Reference Space",
-               "Read Space")
+    breaks = c(referenceSpaceInt, readSpaceInt),
+    labels = c("Reference Space", "Read Space")
   )
   
   return(g)
 }
 
-addCurves <- function(gParticle, adjustedDF,
-                      curvature = 0.75) {
+addCurves <- function(gParticle, adjustedDF, curvature = 0.75) {
   # g = getParticlePlot(rearranged, rearrangedLines, adjustedDF, alphaRibbons, xlab)
   g = gParticle + geom_curve(
     data = adjustedDF,
@@ -307,10 +466,8 @@ addCurves <- function(gParticle, adjustedDF,
     arrow = arrow()
   )
   g = g + scale_y_continuous(
-    breaks = c(referenceSpaceInt,
-               readSpaceInt),
-    labels = c("Reference Space",
-               "Read Space")
+    breaks = c(referenceSpaceInt, readSpaceInt),
+    labels = c("Reference Space", "Read Space")
   ) + expand_limits(y = c(referenceSpaceStackInt - 15, readSpaceStakedInt +
                             15))
   return(g)
@@ -361,7 +518,7 @@ getArrowPlot <-
            pointsize,
            yaxisFontSize) {
     adjustedDF$sameStart = abs(adjustedDF$adjustedPos - adjustedDF$pos) < 10
-    g = ggplot(adjustedDF[which(!adjustedDF$sameStart),])
+    g = ggplot(adjustedDF[which(!adjustedDF$sameStart), ])
     geom_point(
       data = adjustedDF[which(adjustedDF$sameStart), ],
       aes(x = adjustedPos, y = anonymousReadID),
@@ -425,7 +582,7 @@ sortArrowPlots <- function(adjustedDF,
     yaxisFontSize = yaxisFontSize
   )
   gArrowStart = base + scale_y_discrete(limits = rev(adjustedDF[order(adjustedDF$qname_index), ]$anonymousReadID))
-  gArrowReadID = base + scale_y_discrete(limits = rev(adjustedDF[order(adjustedDF$pos),]$anonymousReadID))
+  gArrowReadID = base + scale_y_discrete(limits = rev(adjustedDF[order(adjustedDF$pos), ]$anonymousReadID))
   results = list(gArrowStart = gArrowStart, gArrowReadID = gArrowReadID)
   return(results)
 }
@@ -433,12 +590,17 @@ sortArrowPlots <- function(adjustedDF,
 
 processRegion <-
   function(bamFile,
-           ucscRegion = "chr1:1-1000",
+           ucscRegion = "chrX:1348065-1362538",
            minAlignments = 2) {
     region = strsplit(ucscRegion, ":|-")[[1]]
     bamAll = parseAlignments(bamFile, region)
     bamAll = bamAll[which(bamAll$numAlignmentsForThisReadID >= minAlignments), ]
-    adjusted = getAdjustedDF(df = bamAll)
+    adjusted = getAdjustedDF(
+      df = bamAll,
+      chr = region[1],
+      start = as.numeric(region[2]),
+      end = as.numeric(region[3])
+    )
     adjustedDF = adjusted$adjustedDF
     bamAll = adjusted$df
     rearranged = getRearrangedDF(adjustedDF)
@@ -467,11 +629,7 @@ savePlot <- function(l,
                      singleheight =  5,
                      comboheight = 5,
                      dpi = "retina") {
-  
-  # ggsave("arrange2x2.pdf",,
-  #        device = "pdf")
-  
-  if(createIndividualPlots) {
+  if (createIndividualPlots) {
     invisible(mapply(
       ggsave,
       file = paste0(
@@ -487,7 +645,6 @@ savePlot <- function(l,
       dpi = dpi
     ))
   }
-    
   ggsave(
     filename = filename,
     marrangeGrob(

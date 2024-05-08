@@ -50,7 +50,7 @@ dir.create(dirname(opt$output),
 
 
 processed = processRegion(opt$bam, opt$region)
-# stop()
+
 savePlot(
   list(
     particleStack = processed$gParticleStack,
